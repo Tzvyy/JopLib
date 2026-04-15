@@ -209,7 +209,7 @@ function ThemeManager:_getThemesFolder()
 end
 
 function ThemeManager:_getAutoloadPath()
-    return self:_getBaseFolder() .. "/autoload.txt"
+    return self:_getBaseFolder() .. "/autoload_theme.txt"
 end
 
 function ThemeManager:_ensureFolders()
@@ -231,7 +231,7 @@ function ThemeManager:_listCustomThemes()
         if typeof(listfiles) == "function" then
             for _, path in ipairs(listfiles(folder)) do
                 local name = path:match("([^/\\]+)%.json$")
-                if name and name ~= "autoload" then
+                if name and name ~= "autoload_theme" and name ~= "autoload_config" then
                     table.insert(themes, name)
                 end
             end
