@@ -501,29 +501,37 @@ function ThemeManager:SaveCurrentTheme()
 end
 
 function ThemeManager:LoadAutoloadTheme()
-    local folder = self:_getCustomThemesFolder()
-    local ok, content = pcall(function() return readfile(folder .. "/autoload.txt") end)
-    if not ok or not content then return end
-    content = content:match("^%s*(.-)%s*$") or ""
-    if content == "" then return end
+    task.defer(function()
+        local folder = self:_getCustomThemesFolder()
+        local ok, content = pcall(function() return readfile(folder .. "/autoload.txt") end)
+        if not ok or not content then return end
+        content = content:match("^%s*(.-)%s*$") or ""
+        if content == "" then return end
 
-    -- Try built-in theme first
-    if self.BuiltInThemes[content] then
-        self:SetTheme(content)
-        if getgenv().Options.ThemeSelector then
-            getgenv().Options.ThemeSelector:SetValue(content)
+        local lib = self.Library
+        if lib and lib.Notify then
+            lib:Notify("Auto-loading theme: " .. content, 2)
         end
-    else
-        -- Try custom theme
-        self:LoadCustomTheme(content)
-    end
 
-    -- Enable the toggle without triggering a re-save
-    self._loadingAutoTheme = true
-    if getgenv().Toggles.AutoLoadTheme then
-        getgenv().Toggles.AutoLoadTheme:SetValue(true)
-    end
-    self._loadingAutoTheme = false
+        -- Try built-in theme first
+        if self.BuiltInThemes[content] then
+            self:SetTheme(content)
+            if getgenv().Options.ThemeSelector then
+                getgenv().Options.ThemeSelector:SetValue(content)
+            end
+        else
+            -- Try custom theme
+            self:LoadCustomTheme(content)
+        end
+
+        -- Enable the toggle without triggering a re-save
+        self._loadingAutoTheme = true
+        task.wait(0.1)
+        if getgenv().Toggles.AutoLoadTheme then
+            getgenv().Toggles.AutoLoadTheme:SetValue(true)
+        end
+        self._loadingAutoTheme = false
+    end)
 end
 
 return ThemeManager
