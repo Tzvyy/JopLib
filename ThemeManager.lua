@@ -215,6 +215,10 @@ function ThemeManager:_getAutoloadPath()
     return self:_getThemesFolder() .. "/autoload_theme.txt"
 end
 
+function ThemeManager:_getDefaultThemePath()
+    return self:_getThemesFolder() .. "/default.txt"
+end
+
 function ThemeManager:_ensureFolders()
     pcall(function()
         if typeof(isfolder) == "function" then
@@ -463,29 +467,32 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end,
     })
 
-    local currentTheme = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-    right:AddToggle("AutoLoadTheme", {
-        Text = "Auto-load Theme",
-        Default = false,
-        ValueText = currentTheme,
+    -- Default theme button + label (LinoriaLib style)
+    right:AddButton({
+        Text = "Set as default",
+        Func = function()
+            local themeName = ThemeManager._currentThemeName or "Default"
+            ThemeManager:SaveDefault(themeName)
+            if lib.Notify then lib:Notify(string.format("Set default theme to %q", themeName)) end
+            -- Update label
+            if ThemeManager.DefaultLabel then
+                ThemeManager.DefaultLabel:SetText("Current default theme: " .. themeName)
+            end
+        end,
     })
 
-    getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
-        if ThemeManager._loadingAutoTheme then return end
-        local toggle = getgenv().Toggles.AutoLoadTheme
-        if val then
-            local themeName = ThemeManager._currentThemeName or "Default"
-            ThemeManager:_saveAutoloadSilent(themeName)
-            if toggle then toggle:SetValueText(themeName) end
-        else
-            pcall(function()
-                if typeof(delfile) == "function" then
-                    pcall(function() delfile(ThemeManager:_getAutoloadPath()) end)
-                else
-                    pcall(function() writefile(ThemeManager:_getAutoloadPath(), "") end)
-                end
-            end)
-            if toggle then toggle:SetValueText("") end
+    ThemeManager.DefaultLabel = right:AddLabel("Current default theme: " .. (ThemeManager._currentThemeName or "Default"), true)
+
+    -- Load default theme on startup (auto-load)
+    task.defer(function()
+        local loaded = ThemeManager:LoadDefault()
+        -- Update dropdown to match loaded theme
+        if getgenv().Options.ThemeSelector and loaded ~= getgenv().Options.ThemeSelector.Value then
+            getgenv().Options.ThemeSelector:SetValue(loaded)
+        end
+        -- Update label
+        if ThemeManager.DefaultLabel then
+            ThemeManager.DefaultLabel:SetText("Current default theme: " .. loaded)
         end
     end)
 
@@ -555,6 +562,27 @@ function ThemeManager:SaveCurrentTheme()
     if lib and lib.Notify then
         lib:Notify("Auto-load saved: " .. themeName, 2)
     end
+end
+
+function ThemeManager:SaveDefault(theme)
+    local path = self:_getDefaultThemePath()
+    pcall(function()
+        writefile(path, theme)
+    end)
+end
+
+function ThemeManager:LoadDefault()
+    local theme = "Default"
+    local path = self:_getDefaultThemePath()
+    local ok, content = pcall(function() return readfile(path) end)
+    if ok and content then
+        content = content:match("^%s*(.-)%s*$") or ""
+        if content ~= "" and (self.BuiltInThemes[content] or self:GetCustomTheme(content)) then
+            theme = content
+        end
+    end
+    self:SetTheme(theme)
+    return theme
 end
 
 function ThemeManager:LoadAutoloadTheme()

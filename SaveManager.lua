@@ -203,30 +203,21 @@ function SaveManager:GetConfigs()
 end
 
 function SaveManager:_getAutoloadPath()
-    return self.Folder .. "/autoload_config.txt"
-end
-
-function SaveManager:SetAutoload(name)
-    if typeof(writefile) ~= "function" then return end
-    local path = self:_getAutoloadPath()
-    pcall(function() writefile(path, name) end)
-end
-
-function SaveManager:GetAutoload()
-    if typeof(readfile) ~= "function" then return nil end
-    local path = self:_getAutoloadPath()
-    local ok, content = pcall(readfile, path)
-    if ok and content then
-        content = content:match("^%s*(.-)%s*$") or ""
-        if content ~= "" then return content end
-    end
-    return nil
+    return self.Folder .. "/settings/autoload.txt"
 end
 
 function SaveManager:LoadAutoloadConfig()
-    local name = self:GetAutoload()
-    if name then
-        self:Load(name)
+    if isfile(self:_getAutoloadPath()) then
+        local name = readfile(self:_getAutoloadPath())
+        name = name:match("^%s*(.-)%s*$") or ""
+
+        if name ~= "" then
+            local success, err = self:Load(name)
+            if not success then
+                return self.Library:Notify("Failed to load autoload config: " .. tostring(err))
+            end
+            self.Library:Notify(string.format("Auto loaded config %q", name))
+        end
     end
 end
 
@@ -322,27 +313,36 @@ function SaveManager:BuildConfigSection(tab)
 
     right:AddDivider()
 
-    right:AddToggle("AutoloadEnabled", {
-        Text = "Auto-load Config",
-        Default = self:GetAutoload() ~= nil,
+    -- Set as autoload button + label (LinoriaLib style)
+    right:AddButton({
+        Text = "Set as autoload",
+        Func = function()
+            local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+            if name == "" then
+                if lib.Notify then lib:Notify("Select a config first", 2) end
+                return
+            end
+            writefile(self:_getAutoloadPath(), name)
+            if lib.Notify then lib:Notify(string.format("Set %q to auto load", name)) end
+            -- Update label
+            if SaveManager.AutoloadLabel then
+                SaveManager.AutoloadLabel:SetText("Current autoload config: " .. name)
+            end
+        end,
     })
 
-    getgenv().Toggles.AutoloadEnabled:OnChanged(function()
-        local val = getgenv().Toggles.AutoloadEnabled.Value
-        if val then
-            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-            if name ~= "" then
-                self:SetAutoload(name)
-                if lib.Notify then lib:Notify("Autoload set: " .. name, 2) end
+    -- Show current autoload status
+    local autoloadName = "none"
+    if isfile(self:_getAutoloadPath()) then
+        local ok, content = pcall(function() return readfile(self:_getAutoloadPath()) end)
+        if ok and content then
+            content = content:match("^%s*(.-)%s*$") or ""
+            if content ~= "" then
+                autoloadName = content
             end
-        else
-            pcall(function()
-                if typeof(delfile) == "function" then
-                    delfile(self:_getAutoloadPath())
-                end
-            end)
         end
-    end)
+    end
+    SaveManager.AutoloadLabel = right:AddLabel("Current autoload config: " .. autoloadName, true)
 end
 
 return SaveManager
