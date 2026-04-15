@@ -63,7 +63,6 @@ function Elements:Setup(Library)
 
         function toggleObj:SetValue(val)
             self.Value = val
-            if self._checkmark then self._checkmark.Visible = val end
             if self._box then
                 Tween(self._box, {BackgroundColor3 = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff}, 0.15):Play()
             end
@@ -91,17 +90,6 @@ function Elements:Setup(Library)
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
 
-        local checkmark = Create("TextLabel", {
-            Name = "Checkmark",
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            Text = "\226\156\147",
-            TextColor3 = Color3.new(1, 1, 1),
-            FontFace = lib.FontBold,
-            TextSize = 12,
-            Visible = default,
-            Parent = box,
-        })
 
         Create("TextLabel", {
             Name = "Label",
@@ -117,7 +105,6 @@ function Elements:Setup(Library)
         })
 
         toggleObj._box = box
-        toggleObj._checkmark = checkmark
         toggleObj._container = container
 
         local btn = Create("TextButton", {

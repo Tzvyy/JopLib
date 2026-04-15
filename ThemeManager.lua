@@ -144,6 +144,12 @@ function ThemeManager:_applyThemeToGui()
                 desc.BackgroundColor3 = theme.GroupboxBg
             elseif name == "Fill" then
                 desc.BackgroundColor3 = theme.SliderFill
+            elseif name == "Box" and desc.Parent and desc.Parent.Name:find("^Toggle_") then
+                local flag = desc.Parent.Name:sub(8)
+                local tog = getgenv().Toggles and getgenv().Toggles[flag]
+                if tog then
+                    desc.BackgroundColor3 = tog.Value and theme.ToggleOn or theme.ToggleOff
+                end
             end
         end
 
