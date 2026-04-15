@@ -132,6 +132,7 @@ function Library:ClosePopups()
     if self._openPopup then
         local popup = self._openPopup
         self._openPopup = nil
+        self._openPopupTrigger = nil
         if popup.Close then popup:Close() end
     end
 end
@@ -189,13 +190,14 @@ function Library:Notify(text, duration)
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 0, 0, 3),
+            Position = UDim2.new(0, 0, 0, 1),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
         Create("TextLabel", {
             Name = "Text",
             Size = UDim2.new(1, -16, 1, -12),
-            Position = UDim2.new(0, 8, 0, 7),
+            Position = UDim2.new(0, 8, 0, 8),
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = self.Theme.FontPrimary,
@@ -256,7 +258,7 @@ function Library:CreateWatermark()
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 16, 0, 3),
-            Position = UDim2.new(0, -8, 0, 0),
+            Position = UDim2.new(0, -8, 0, 1),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -318,13 +320,14 @@ function Library:CreateKeybindFrame()
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 0, 0, 3),
+            Position = UDim2.new(0, 0, 0, 1),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
         Create("TextLabel", {
             Name = "Title",
             Size = UDim2.new(1, -8, 0, 24),
-            Position = UDim2.new(0, 6, 0, 5),
+            Position = UDim2.new(0, 6, 0, 6),
             BackgroundTransparency = 1,
             Text = "Keybinds",
             TextColor3 = self.Theme.FontSecondary,
@@ -374,9 +377,9 @@ function Library:UpdateKeybindFrame()
             local isActive = opt._isActive or (modeStr == "Always")
             local textColor = isActive and self.Theme.Accent or self.Theme.FontSecondary
 
-            local entryHeight = isActive and 20 or 18
-            local mainSize = isActive and 14 or 13
-            local modeSize = isActive and 13 or 12
+            local entryHeight = isActive and 19 or 18
+            local mainSize = isActive and 13.5 or 13
+            local modeSize = isActive and 12.5 or 12
             local fontFace = isActive and self.FontSemiBold or self.FontRegular
 
             local entry = Create("Frame", {
@@ -411,7 +414,7 @@ function Library:UpdateKeybindFrame()
         end
     end
 
-    local totalHeight = 34 + (count * 21)
+    local totalHeight = 34 + (count * 20)
     self._keybindFrame.Size = UDim2.new(0, 220, 0, math.max(30, totalHeight))
 end
 
@@ -455,8 +458,19 @@ function Library:CreateWindow(options)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
         if not Library._openPopup then return end
 
-        -- Check if click is inside the popup holder's children
         local mousePos = input.Position
+
+        -- Check if click is on the trigger button (let the button's own handler deal with toggle)
+        if Library._openPopupTrigger then
+            local tp = Library._openPopupTrigger.AbsolutePosition
+            local ts = Library._openPopupTrigger.AbsoluteSize
+            if mousePos.X >= tp.X and mousePos.X <= tp.X + ts.X
+                and mousePos.Y >= tp.Y and mousePos.Y <= tp.Y + ts.Y then
+                return
+            end
+        end
+
+        -- Check if click is inside the popup holder's children
         local isInsidePopup = false
         for _, child in ipairs(popupHolder:GetChildren()) do
             if child:IsA("GuiObject") and child.Visible then
@@ -472,9 +486,7 @@ function Library:CreateWindow(options)
 
         if not isInsidePopup then
             task.defer(function()
-                if not Library._justClosedPopup then
-                    Library:ClosePopups()
-                end
+                Library:ClosePopups()
             end)
         end
     end)

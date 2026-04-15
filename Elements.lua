@@ -788,14 +788,14 @@ function Elements:Setup(Library)
             if open then
                 closeDrop()
                 lib._openPopup = nil
-                lib._justClosedPopup = true
-                task.defer(function() lib._justClosedPopup = false end)
+                lib._openPopupTrigger = nil
             else
                 lib:ClosePopups()
                 open = true
                 arrow.Text = "\226\150\178"
                 buildItems()
                 lib._openPopup = popupObj
+                lib._openPopupTrigger = dropBtn
                 lib:_showClickCatcher()
 
                 -- Track dropdown position while scrolling
@@ -1120,6 +1120,7 @@ function Elements:Setup(Library)
             end
 
             lib._openPopup = { Close = closeMenu }
+            lib._openPopupTrigger = keyBtn
             lib:_showClickCatcher()
         end)
 
@@ -1290,6 +1291,7 @@ function Elements:Setup(Library)
             if pickerFrame then
                 closePicker()
                 lib._openPopup = nil
+                lib._openPopupTrigger = nil
                 return
             end
 
@@ -1537,6 +1539,7 @@ function Elements:Setup(Library)
             end)
 
             lib._openPopup = popupObj
+            lib._openPopupTrigger = previewBtn
         end)
 
         getgenv().Options[flag] = cpObj

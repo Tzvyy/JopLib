@@ -259,16 +259,16 @@ function ThemeManager:LoadCustomTheme(name)
     return true
 end
 
-function ThemeManager:ApplyToTab(tab)
+function ThemeManager:ApplyToTab(tab, menuGroupbox)
     local lib = self.Library
     if not lib then return end
 
-    -- ── LEFT: Theme selection + custom themes ──
-    local left = tab:AddLeftGroupbox("Theme")
+    -- ── RIGHT: Theme (selector + colors + custom themes) ──
+    local right = tab:AddRightGroupbox("Theme")
 
     local themeNames = self:GetThemes()
 
-    left:AddDropdown("ThemeSelector", {
+    right:AddDropdown("ThemeSelector", {
         Values = themeNames,
         Default = "Default",
         Text = "Theme",
@@ -278,8 +278,37 @@ function ThemeManager:ApplyToTab(tab)
         ThemeManager:SetTheme(val)
     end)
 
-    -- Custom themes (inside Theme groupbox)
-    left:AddInput("CustomThemeName", {
+    -- Color pickers
+    local colorMap = {
+        { label = "Background Color", keys = {"Background", "TitleBar", "GroupboxBg"} },
+        { label = "Main Color", keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { label = "Accent Color", keys = {"Accent", "ToggleOn", "SliderFill"} },
+        { label = "Outline Color", keys = {"Border", "ElementBorder"} },
+        { label = "Font Color", keys = {"FontPrimary"} },
+        { label = "Subtext Font Color", keys = {"FontSecondary"} },
+    }
+
+    for i, entry in ipairs(colorMap) do
+        local cpFlag = "ThemeColor_" .. i
+        local firstKey = entry.keys[1]
+        right:AddLabel(entry.label):AddColorPicker(cpFlag, {
+            Default = lib.Theme[firstKey],
+            Title = entry.label,
+        })
+
+        getgenv().Options[cpFlag]:OnChanged(function(color)
+            for _, key in ipairs(entry.keys) do
+                lib.Theme[key] = color
+            end
+            if entry.keys[1] == "Accent" then
+                lib.AccentColor = color
+            end
+            ThemeManager:_applyThemeToGui()
+        end)
+    end
+
+    -- Custom themes
+    right:AddInput("CustomThemeName", {
         Default = "",
         Numeric = false,
         Finished = false,
@@ -287,14 +316,14 @@ function ThemeManager:ApplyToTab(tab)
         Placeholder = "Enter theme name...",
     })
 
-    left:AddDropdown("CustomThemeList", {
+    right:AddDropdown("CustomThemeList", {
         Values = ThemeManager:_listCustomThemes(),
         Default = 1,
         Text = "Custom Themes",
     })
 
     -- Side-by-side Save/Load buttons
-    local btnOrder = left:_nextOrder()
+    local btnOrder = right:_nextOrder()
     local Create = function(cls, props, children)
         local inst = Instance.new(cls)
         for k, v in pairs(props or {}) do
@@ -312,7 +341,7 @@ function ThemeManager:ApplyToTab(tab)
         Size = UDim2.new(1, 0, 0, 26),
         BackgroundTransparency = 1,
         LayoutOrder = btnOrder,
-        Parent = left._container,
+        Parent = right._container,
     }, {
         Create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -367,7 +396,7 @@ function ThemeManager:ApplyToTab(tab)
         end
     end)
 
-    left:AddButton({
+    right:AddButton({
         Text = "Refresh list",
         Func = function()
             local newList = ThemeManager:_listCustomThemes()
@@ -378,44 +407,13 @@ function ThemeManager:ApplyToTab(tab)
         end,
     })
 
-    left:AddToggle("AutoLoadTheme", {
+    right:AddToggle("AutoLoadTheme", {
         Text = "Auto-load Theme",
         Default = false,
     })
 
-    -- ── RIGHT: Color pickers ──
-    local right = tab:AddRightGroupbox("Colors")
-
-    local colorMap = {
-        { label = "Background Color", keys = {"Background", "TitleBar", "GroupboxBg"} },
-        { label = "Main Color", keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
-        { label = "Accent Color", keys = {"Accent", "ToggleOn", "SliderFill"} },
-        { label = "Outline Color", keys = {"Border", "ElementBorder"} },
-        { label = "Font Color", keys = {"FontPrimary"} },
-        { label = "Subtext Font Color", keys = {"FontSecondary"} },
-    }
-
-    for i, entry in ipairs(colorMap) do
-        local cpFlag = "ThemeColor_" .. i
-        local firstKey = entry.keys[1]
-        right:AddLabel(entry.label):AddColorPicker(cpFlag, {
-            Default = lib.Theme[firstKey],
-            Title = entry.label,
-        })
-
-        getgenv().Options[cpFlag]:OnChanged(function(color)
-            for _, key in ipairs(entry.keys) do
-                lib.Theme[key] = color
-            end
-            if entry.keys[1] == "Accent" then
-                lib.AccentColor = color
-            end
-            ThemeManager:_applyThemeToGui()
-        end)
-    end
-
-    -- ── RIGHT: Menu ──
-    local menu = tab:AddRightGroupbox("Menu")
+    -- ── Menu toggles (added to existing Menu groupbox if provided) ──
+    local menu = menuGroupbox or tab:AddLeftGroupbox("Menu")
 
     menu:AddToggle("ShowWatermark", {
         Text = "Show Watermark",

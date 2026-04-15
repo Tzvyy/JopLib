@@ -231,7 +231,7 @@ function SaveManager:BuildConfigSection(tab)
     local lib = self.Library
     if not lib then return end
 
-    local right = tab:AddRightGroupbox("Config")
+    local right = tab:AddLeftGroupbox("Config")
 
     right:AddInput("ConfigName", {
         Text = "Config Name",
