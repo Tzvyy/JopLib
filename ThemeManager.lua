@@ -294,13 +294,16 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
-        local autoLoad = getgenv().Toggles.AutoLoadTheme
-        if autoLoad and autoLoad.Value then
-            local lib = self.Library
-            if lib and lib.Notify then
-                lib:Notify("Saving theme for auto-load: " .. tostring(val), 2)
+        local autoToggle = getgenv().Toggles.AutoLoadTheme
+        if autoToggle then
+            if autoToggle.Value then
+                -- Update display and save
+                autoToggle:SetValueText(val)
+                ThemeManager:SaveCurrentTheme()
+            else
+                -- Just update display (in case they enable auto-load later)
+                autoToggle:SetValueText(val)
             end
-            ThemeManager:SaveCurrentTheme()
         end
     end)
 
@@ -433,24 +436,29 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end,
     })
 
+    local currentTheme = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
     right:AddToggle("AutoLoadTheme", {
         Text = "Auto-load Theme",
         Default = false,
+        ValueText = currentTheme,
     })
 
     getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
         if ThemeManager._loadingAutoTheme then return end
         local path = ThemeManager:_getAutoloadPath()
+        local toggle = getgenv().Toggles.AutoLoadTheme
         pcall(function()
             if val then
                 local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
                 writefile(path, themeName)
+                if toggle then toggle:SetValueText(themeName) end
             else
                 if typeof(delfile) == "function" then
                     pcall(function() delfile(path) end)
                 else
                     pcall(function() writefile(path, "") end)
                 end
+                if toggle then toggle:SetValueText("") end
             end
         end)
     end)

@@ -90,10 +90,12 @@ function Elements:Setup(Library)
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
 
+        local hasValue = options.ValueText and options.ValueText ~= ""
+        local labelWidth = hasValue and UDim2.new(1, -120, 1, 0) or UDim2.new(1, -24, 1, 0)
 
         Create("TextLabel", {
             Name = "Label",
-            Size = UDim2.new(1, -24, 1, 0),
+            Size = labelWidth,
             Position = UDim2.new(0, 22, 0, 0),
             BackgroundTransparency = 1,
             Text = text,
@@ -104,8 +106,31 @@ function Elements:Setup(Library)
             Parent = container,
         })
 
+        local valueLabel = nil
+        if hasValue then
+            valueLabel = Create("TextLabel", {
+                Name = "ValueLabel",
+                Size = UDim2.new(0, 90, 1, 0),
+                Position = UDim2.new(1, -95, 0, 0),
+                BackgroundTransparency = 1,
+                Text = options.ValueText,
+                TextColor3 = lib.Theme.FontSecondary,
+                FontFace = lib.FontRegular,
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Right,
+                Parent = container,
+            })
+        end
+
         toggleObj._box = box
+        toggleObj._valueLabel = valueLabel
         toggleObj._container = container
+
+        function toggleObj:SetValueText(txt)
+            if self._valueLabel then
+                self._valueLabel.Text = txt or ""
+            end
+        end
 
         local btn = Create("TextButton", {
             Name = "ClickArea",
