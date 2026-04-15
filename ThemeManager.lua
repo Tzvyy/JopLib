@@ -15,21 +15,21 @@ ThemeManager.BuiltInThemes = {}
 -- ============================================================
 
 ThemeManager.BuiltInThemes["Default"] = {
-    Background       = Color3.fromRGB(20, 20, 20),
-    TitleBar         = Color3.fromRGB(25, 25, 25),
-    TabBackground    = Color3.fromRGB(28, 28, 28),
-    TabActive        = Color3.fromRGB(35, 35, 35),
-    TabInactive      = Color3.fromRGB(28, 28, 28),
-    GroupboxBg       = Color3.fromRGB(25, 25, 25),
-    ElementBg        = Color3.fromRGB(35, 35, 35),
-    ElementBorder    = Color3.fromRGB(50, 50, 50),
-    FontPrimary      = Color3.fromRGB(220, 220, 220),
-    FontSecondary    = Color3.fromRGB(160, 160, 160),
+    Background       = Color3.fromRGB(35, 35, 40),
+    TitleBar         = Color3.fromRGB(40, 40, 46),
+    TabBackground    = Color3.fromRGB(38, 38, 44),
+    TabActive        = Color3.fromRGB(50, 50, 58),
+    TabInactive      = Color3.fromRGB(38, 38, 44),
+    GroupboxBg       = Color3.fromRGB(38, 38, 44),
+    ElementBg        = Color3.fromRGB(48, 48, 56),
+    ElementBorder    = Color3.fromRGB(60, 60, 68),
+    FontPrimary      = Color3.fromRGB(220, 220, 225),
+    FontSecondary    = Color3.fromRGB(150, 150, 160),
     Accent           = Color3.fromRGB(96, 105, 255),
     ToggleOn         = Color3.fromRGB(96, 105, 255),
-    ToggleOff        = Color3.fromRGB(50, 50, 50),
+    ToggleOff        = Color3.fromRGB(55, 55, 62),
     SliderFill       = Color3.fromRGB(96, 105, 255),
-    Border           = Color3.fromRGB(45, 45, 45),
+    Border           = Color3.fromRGB(55, 55, 62),
 }
 
 ThemeManager.BuiltInThemes["Light"] = {
@@ -61,10 +61,10 @@ ThemeManager.BuiltInThemes["Dark"] = {
     ElementBorder    = Color3.fromRGB(40, 40, 40),
     FontPrimary      = Color3.fromRGB(210, 210, 210),
     FontSecondary    = Color3.fromRGB(140, 140, 140),
-    Accent           = Color3.fromRGB(96, 105, 255),
-    ToggleOn         = Color3.fromRGB(96, 105, 255),
+    Accent           = Color3.fromRGB(220, 220, 220),
+    ToggleOn         = Color3.fromRGB(220, 220, 220),
     ToggleOff        = Color3.fromRGB(40, 40, 40),
-    SliderFill       = Color3.fromRGB(96, 105, 255),
+    SliderFill       = Color3.fromRGB(220, 220, 220),
     Border           = Color3.fromRGB(35, 35, 35),
 }
 
@@ -101,8 +101,8 @@ function ThemeManager:SetTheme(name)
     -- Update color picker previews (indexed flags matching colorMap)
     local opts = getgenv().Options or {}
     local colorMap = {
-        { keys = {"Background", "GroupboxBg"} },
-        { keys = {"TitleBar", "TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { keys = {"Background", "TitleBar", "GroupboxBg"} },
+        { keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
         { keys = {"Accent", "ToggleOn", "SliderFill"} },
         { keys = {"Border", "ElementBorder"} },
         { keys = {"FontPrimary"} },
@@ -132,8 +132,10 @@ function ThemeManager:_applyThemeToGui()
         if desc:IsA("Frame") then
             if name == "MainFrame" then
                 desc.BackgroundColor3 = theme.Background
-            elseif name == "TitleBar" or name == "BottomCover" then
-                desc.BackgroundColor3 = theme.TitleBar
+            elseif name == "TitleBar" then
+                desc.BackgroundColor3 = theme.Background
+            elseif name == "BottomCover" then
+                desc.BackgroundColor3 = theme.Background
             elseif name == "AccentLine" or name == "AccentBar" then
                 desc.BackgroundColor3 = theme.Accent
             elseif name == "TabBarContainer" then
@@ -170,6 +172,17 @@ function ThemeManager:_applyThemeToGui()
             if name == "Btn" then
                 desc.BackgroundColor3 = theme.ElementBg
                 desc.TextColor3 = theme.FontPrimary
+            elseif name:find("^Tab_") then
+                -- Main tabs (Tab_Main, Tab_UI Settings, etc.)
+                local isActive = desc.BackgroundColor3 ~= theme.TabInactive
+                desc.BackgroundColor3 = theme.TabActive
+            elseif name:find("^TBTab_") then
+                -- Tabbox sub-tabs
+                desc.BackgroundColor3 = theme.TabActive
+            elseif name == "DropBtn" then
+                desc.BackgroundColor3 = theme.ElementBg
+            elseif name == "KeyBtn" then
+                desc.BackgroundColor3 = theme.ElementBg
             end
         end
 
@@ -179,6 +192,71 @@ function ThemeManager:_applyThemeToGui()
             end
         end
     end
+end
+
+function ThemeManager:_getCustomThemesFolder()
+    return ThemeManager.Folder .. "/themes"
+end
+
+function ThemeManager:_ensureFolder()
+    local folder = self:_getCustomThemesFolder()
+    pcall(function()
+        if typeof(isfolder) == "function" and not isfolder(folder) then makefolder(folder) end
+    end)
+    return folder
+end
+
+function ThemeManager:_listCustomThemes()
+    local folder = self:_getCustomThemesFolder()
+    local themes = {}
+    pcall(function()
+        if typeof(listfiles) == "function" then
+            for _, path in ipairs(listfiles(folder)) do
+                local name = path:match("([^/\\]+)%.json$")
+                if name and name ~= "autoload" then
+                    table.insert(themes, name)
+                end
+            end
+        end
+    end)
+    table.sort(themes)
+    return themes
+end
+
+function ThemeManager:SaveCustomTheme(name)
+    if not name or name == "" then return false end
+    local lib = self.Library
+    if not lib then return false end
+    local folder = self:_ensureFolder()
+    local data = {}
+    for key, color in pairs(lib.Theme) do
+        data[key] = {math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)}
+    end
+    pcall(function()
+        writefile(folder .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+    end)
+    return true
+end
+
+function ThemeManager:LoadCustomTheme(name)
+    if not name or name == "" then return false end
+    local lib = self.Library
+    if not lib then return false end
+    local folder = self:_getCustomThemesFolder()
+    local ok, content = pcall(function()
+        return readfile(folder .. "/" .. name .. ".json")
+    end)
+    if not ok or not content then return false end
+    local ok2, data = pcall(function() return HttpService:JSONDecode(content) end)
+    if not ok2 or not data then return false end
+    for key, rgb in pairs(data) do
+        if type(rgb) == "table" and #rgb == 3 then
+            lib.Theme[key] = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+        end
+    end
+    if lib.Theme.Accent then lib.AccentColor = lib.Theme.Accent end
+    self:_applyThemeToGui()
+    return true
 end
 
 function ThemeManager:ApplyToTab(tab)
@@ -201,8 +279,8 @@ function ThemeManager:ApplyToTab(tab)
 
     -- Simplified color pickers (6 categories)
     local colorMap = {
-        { label = "Background Color", keys = {"Background", "GroupboxBg"} },
-        { label = "Main Color", keys = {"TitleBar", "TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { label = "Background Color", keys = {"Background", "TitleBar", "GroupboxBg"} },
+        { label = "Main Color", keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
         { label = "Accent Color", keys = {"Accent", "ToggleOn", "SliderFill"} },
         { label = "Outline Color", keys = {"Border", "ElementBorder"} },
         { label = "Font Color", keys = {"FontPrimary"} },
@@ -228,36 +306,107 @@ function ThemeManager:ApplyToTab(tab)
         end)
     end
 
-    -- Save/Load theme
-    left:AddButton({
-        Text = "Save Theme",
-        Func = function()
-            local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-            local folder = ThemeManager.Folder .. "/themes"
-            pcall(function()
-                if typeof(isfolder) == "function" and not isfolder(folder) then makefolder(folder) end
-                if typeof(writefile) == "function" then
-                    writefile(folder .. "/current.txt", themeName)
-                end
-            end)
-            if lib and lib.Notify then lib:Notify("Theme saved: " .. tostring(themeName), 2) end
-        end,
+    -- Custom themes section
+    local right = tab:AddRightGroupbox("Custom Themes")
+
+    right:AddInput("CustomThemeName", {
+        Default = "",
+        Numeric = false,
+        Finished = false,
+        Text = "Custom Theme Name",
+        Placeholder = "Enter theme name...",
     })
 
-    left:AddButton({
-        Text = "Load Theme",
-        Func = function()
-            local folder = ThemeManager.Folder .. "/themes"
-            local ok, content = pcall(function()
-                return readfile(folder .. "/current.txt")
-            end)
-            if ok and content and content ~= "" then
-                ThemeManager:SetTheme(content)
-                if getgenv().Options.ThemeSelector then
-                    getgenv().Options.ThemeSelector:SetValue(content)
-                end
-                if lib and lib.Notify then lib:Notify("Theme loaded: " .. tostring(content), 2) end
+    right:AddDropdown("CustomThemeList", {
+        Values = ThemeManager:_listCustomThemes(),
+        Default = 1,
+        Text = "Custom Themes",
+    })
+
+    -- Side-by-side Save/Load buttons row
+    local btnOrder = right:_nextOrder()
+    local Create = lib._Create or function(cls, props, children)
+        local inst = Instance.new(cls)
+        for k, v in pairs(props or {}) do
+            if k ~= "Parent" then inst[k] = v end
+        end
+        if children then
+            for _, c in ipairs(children) do c.Parent = inst end
+        end
+        if props.Parent then inst.Parent = props.Parent end
+        return inst
+    end
+
+    local btnRow = Create("Frame", {
+        Name = "SaveLoadRow",
+        Size = UDim2.new(1, 0, 0, 26),
+        BackgroundTransparency = 1,
+        LayoutOrder = btnOrder,
+        Parent = right._container,
+    }, {
+        Create("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 4),
+        }),
+    })
+
+    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick)
+        local btn = Create("TextButton", {
+            Name = "Btn",
+            Size = UDim2.new(0.5, -2, 1, 0),
+            BackgroundColor3 = lib.Theme.ElementBg,
+            BorderSizePixel = 0,
+            Text = btnText,
+            TextColor3 = lib.Theme.FontPrimary,
+            FontFace = lib.FontSemiBold,
+            TextSize = 13,
+            LayoutOrder = layoutOrder,
+            Parent = parent,
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+        })
+        btn.MouseButton1Click:Connect(onClick)
+        return btn
+    end
+
+    makeSideBySideBtn("Save theme", 0, btnRow, function()
+        local name = getgenv().Options.CustomThemeName and getgenv().Options.CustomThemeName.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Enter a theme name first", 2) end
+            return
+        end
+        if ThemeManager:SaveCustomTheme(name) then
+            if lib.Notify then lib:Notify("Theme saved: " .. name, 2) end
+            -- Refresh the dropdown
+            local newList = ThemeManager:_listCustomThemes()
+            if getgenv().Options.CustomThemeList then
+                getgenv().Options.CustomThemeList:SetValues(newList)
             end
+        end
+    end)
+
+    makeSideBySideBtn("Load theme", 1, btnRow, function()
+        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Select a custom theme first", 2) end
+            return
+        end
+        if ThemeManager:LoadCustomTheme(name) then
+            if lib.Notify then lib:Notify("Theme loaded: " .. name, 2) end
+        end
+    end)
+
+    -- Refresh list button (full width below)
+    right:AddButton({
+        Text = "Refresh list",
+        Func = function()
+            local newList = ThemeManager:_listCustomThemes()
+            if getgenv().Options.CustomThemeList then
+                getgenv().Options.CustomThemeList:SetValues(newList)
+            end
+            if lib.Notify then lib:Notify("Custom themes refreshed", 2) end
         end,
     })
 

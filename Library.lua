@@ -369,14 +369,8 @@ function Library:UpdateKeybindFrame()
             if not showAll and not opt._isActive then continue end
             count = count + 1
             local modeStr = opt.Mode or "Toggle"
-            local stateStr = ""
-            if modeStr == "Toggle" then
-                stateStr = opt._isActive and " [on]" or " [off]"
-            elseif modeStr == "Hold" then
-                stateStr = opt._isActive and " [held]" or ""
-            elseif modeStr == "Always" then
-                stateStr = " [always]"
-            end
+            local isActive = opt._isActive or (modeStr == "Always")
+            local textColor = isActive and self.Theme.Accent or self.Theme.FontSecondary
 
             local entry = Create("Frame", {
                 Size = UDim2.new(1, 0, 0, 16),
@@ -386,10 +380,10 @@ function Library:UpdateKeybindFrame()
             })
 
             Create("TextLabel", {
-                Size = UDim2.new(0.6, 0, 1, 0),
+                Size = UDim2.new(0.65, 0, 1, 0),
                 BackgroundTransparency = 1,
-                Text = (opt.Text or flag) .. stateStr,
-                TextColor3 = self.Theme.FontSecondary,
+                Text = (opt.Text or flag) .. " [" .. opt.Value .. "]",
+                TextColor3 = textColor,
                 FontFace = self.FontRegular,
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -397,11 +391,11 @@ function Library:UpdateKeybindFrame()
             })
 
             Create("TextLabel", {
-                Size = UDim2.new(0.4, 0, 1, 0),
-                Position = UDim2.new(0.6, 0, 0, 0),
+                Size = UDim2.new(0.35, 0, 1, 0),
+                Position = UDim2.new(0.65, 0, 0, 0),
                 BackgroundTransparency = 1,
-                Text = "[" .. opt.Value .. "]",
-                TextColor3 = self.Theme.FontSecondary,
+                Text = "(" .. modeStr .. ")",
+                TextColor3 = textColor,
                 FontFace = self.FontRegular,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Right,
@@ -506,7 +500,7 @@ function Library:CreateWindow(options)
     local titleBar = Create("Frame", {
         Name = "TitleBar",
         Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundColor3 = self.Theme.Background,
         BorderSizePixel = 0,
         Parent = mainFrame,
     }, {
@@ -517,7 +511,7 @@ function Library:CreateWindow(options)
         Name = "BottomCover",
         Size = UDim2.new(1, 0, 0, 8),
         Position = UDim2.new(0, 0, 1, -8),
-        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundColor3 = self.Theme.Background,
         BorderSizePixel = 0,
         Parent = titleBar,
     })

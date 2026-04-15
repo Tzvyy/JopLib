@@ -753,8 +753,17 @@ function Elements:Setup(Library)
                         item.TextColor3 = sel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
                     else
                         dropObj:SetValue(val)
-                        closeDrop()
-                        lib._openPopup = nil
+                        -- Update all items highlight without closing
+                        if dropList then
+                            for _, child in ipairs(dropList:GetChildren()) do
+                                if child:IsA("TextButton") then
+                                    local isSel = (child.Name == "Item_" .. val)
+                                    child.BackgroundColor3 = isSel and lib.Theme.Accent or lib.Theme.ElementBg
+                                    child.BackgroundTransparency = isSel and 0.7 or 0
+                                    child.TextColor3 = isSel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
+                                end
+                            end
+                        end
                     end
                 end)
 
@@ -1021,7 +1030,7 @@ function Elements:Setup(Library)
             elseif type(data) == "string" then
                 self.Value = data
             end
-            if self._keyLabel then self._keyLabel.Text = "[" .. self.Value .. "]" end
+            if self._keyLabel then self._keyLabel.Text = self.Value end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
             if changedCb then task.spawn(changedCb, self.Value) end
         end
@@ -1040,7 +1049,7 @@ function Elements:Setup(Library)
             Position = UDim2.new(0, 0, 0, 2),
             BackgroundColor3 = lib.Theme.ElementBg,
             BorderSizePixel = 0,
-            Text = "[" .. default .. "]",
+            Text = default,
             TextColor3 = lib.Theme.FontSecondary,
             FontFace = lib.FontRegular,
             TextSize = 11,
