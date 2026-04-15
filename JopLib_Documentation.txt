@@ -1,0 +1,540 @@
+================================================================================
+                           JOPLIB DOCUMENTATION
+                         Complete GUI System Guide
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. Architecture Overview
+2. Library.lua - Core Systems
+3. Elements.lua - UI Components
+4. ThemeManager.lua - Theme System
+5. SaveManager.lua - Config System
+6. Data Flow & Connections
+7. File Structure
+8. Key Technical Details
+
+================================================================================
+1. ARCHITECTURE OVERVIEW
+================================================================================
+
+CORE PRINCIPLE: Modular design with 4 main components that communicate
+through global tables (getgenv().Options and getgenv().Toggles).
+
+COMPONENTS:
+- Library.lua      - Window, popups, notifications, watermark, keybind list
+- Elements.lua     - Interactive elements (toggles, dropdowns, sliders, etc.)
+- ThemeManager.lua - Colors, built-in/custom themes, auto-load
+- SaveManager.lua  - Config save/load system
+
+GLOBAL ACCESS:
+  getgenv().Options[flag]  - Stores dropdown values, colors, keybinds
+  getgenv().Toggles[flag]  - Stores boolean toggle states
+
+================================================================================
+2. LIBRARY.LUA - THE FOUNDATION
+================================================================================
+
+WINDOW CREATION (CreateWindow)
+------------------------------
+Usage:
+  Library:CreateWindow({
+      Title = "JopLib",
+      Center = true
+  })
+
+Creates:
+  - ScreenGui in CoreGui
+  - MainFrame (Background color) with UICorner + UIStroke
+  - TitleBar (Background color, not separate) with title text
+  - TabBarContainer for tab buttons
+  - LeftColumn/RightColumn scrolling frames for groupboxes
+  - _popupHolder for dropdowns/color pickers
+
+POPUP MANAGEMENT
+----------------
+Variables:
+  Library._openPopup = nil         -- Currently open popup
+  Library._openPopupTrigger = nil  -- Button that opened it
+
+Methods:
+  Library:ClosePopups()            -- Closes current popup
+
+Outside-Click Detection:
+  - Uses InputBegan to detect clicks outside popups
+  - Clicks on trigger button are ignored (prevents close-then-reopen bug)
+  - Only one popup open at a time (dropdown, color picker, or keybind menu)
+
+NOTIFICATION SYSTEM (Notify)
+----------------------------
+Usage:
+  Library:Notify(text, duration)
+
+Features:
+  - Creates notification frame with Background color
+  - Rounded corners (UICorner with CornerRadius 6)
+  - Tween animation (fade in/out, size change)
+  - Auto-removes after duration
+  - NotificationHolder ScreenGui for stacking
+
+WATERMARK & KEYBIND LIST
+------------------------
+Watermark:
+  - Separate ScreenGui positioned on screen
+  - Shows title + FPS, draggable
+  - Background color with slight transparency
+  - Updates FPS every frame
+
+Keybind List:
+  - Shows active keybinds with accent color when ON
+  - Fixed height entries (18px)
+  - 220px wide frame
+  - "Keybinds" title at top
+  - Lists: Name [Key] (Mode) format
+
+================================================================================
+3. ELEMENTS.LUA - UI COMPONENTS
+================================================================================
+
+GROUPBOX SYSTEM
+---------------
+Creation:
+  tab:AddLeftGroupbox("GroupName")
+  tab:AddRightGroupbox("GroupName")
+
+Structure:
+  - Container Frame with UIListLayout
+  - Automatic LayoutOrder positioning
+  - Each element gets sequential order number
+
+TOGGLE (AddToggle)
+------------------
+Usage:
+  groupbox:AddToggle("FlagName", {
+      Text = "Show Watermark",
+      Default = false,
+      ValueText = "CurrentValue"  -- Optional, shows on right
+  })
+
+Structure:
+  [Box] Label---------------------[ValueText]
+   16x16 colored frame
+
+Features:
+  - Box color: ToggleOn (accent) when ON, ToggleOff (gray) when OFF
+  - ValueText option: displays text on right side
+  - SetValueText(txt) method updates right-side text
+  - Stored in getgenv().Toggles[flag]
+
+DROPDOWN (AddDropdown)
+----------------------
+Structure:
+  [DropBtn: Current Value ?]
+              |
+       [DropList: Items]
+
+Features:
+  - dropBtn shows current value + arrow (? or ?)
+  - dropList positioned below button
+  - Tracks position while scrolling (Heartbeat connection)
+  - lib._openPopup = popupObj when open
+  - lib._openPopupTrigger = dropBtn for outside-click handling
+  - Does NOT close on item select (unless multi-select mode)
+
+KEYPICKER (AddKeyPicker)
+------------------------
+Attachment:
+  toggle:AddKeyPicker("Flag", {
+      Default = "F",
+      Mode = "Toggle",  -- "Toggle", "Hold", "Always"
+      NoUI = true       -- Don't show in keybind list
+  })
+
+Structure:
+  Click opens mode menu (Always/Toggle/Hold)
+  + Key listener
+
+Features:
+  - Mode button shows current mode + key
+  - Listening state captures next keypress
+  - Supports "None" for no keybind
+
+COLORPICKER (AddColorPicker)
+----------------------------
+Attachment:
+  label:AddColorPicker("Flag", {
+      Default = Color3.fromRGB(255, 0, 0),
+      Title = "Color"
+  })
+
+Structure:
+  Preview button (shows current color)
+  Click opens popup with:
+    - Saturation/Value gradient
+    - Hue slider
+    - Hex input box
+    - RGB input boxes
+    - Close button
+
+SLIDER (AddSlider)
+------------------
+Structure:
+  [Label][ValueText]
+  [=========O----]  (track with fill and thumb)
+
+Features:
+  - Drag to change value
+  - Configurable min/max/default
+  - Optional value text display
+
+================================================================================
+4. THEMEMANAGER.LUA - THEME SYSTEM
+================================================================================
+
+COLOR SYSTEM
+------------
+All colors stored in lib.Theme table:
+
+  Theme = {
+      Background     = Color3,  -- Main window, groupboxes
+      TitleBar       = Color3,  -- Header (same as Background)
+      TabBackground  = Color3,  -- Tab bar background
+      TabActive      = Color3,  -- Active tab button
+      TabInactive    = Color3,  -- Inactive tab button
+      GroupboxBg     = Color3,  -- Groupbox backgrounds
+      ElementBg      = Color3,  -- Input elements
+      ElementBorder  = Color3,  -- Element borders
+      Border         = Color3,  -- Main window border
+      FontPrimary    = Color3,  -- Main text
+      FontSecondary  = Color3,  -- Secondary text
+      Accent         = Color3,  -- Accent color
+      ToggleOn       = Color3,  -- Toggle ON state
+      ToggleOff      = Color3,  -- Toggle OFF state
+      SliderFill     = Color3,  -- Slider fill color
+  }
+
+BUILT-IN THEMES
+---------------
+  BuiltInThemes = {
+      Default = {  -- Gray-blue theme
+          Background = Color3.fromRGB(30, 30, 30),
+          Accent = Color3.fromRGB(96, 105, 255),
+          ...
+      },
+      Dark = {     -- Pure grayscale with white accent
+          Background = Color3.fromRGB(20, 20, 20),
+          Accent = Color3.fromRGB(255, 255, 255),
+          ...
+      },
+      Light = {    -- Light theme
+          Background = Color3.fromRGB(245, 245, 245),
+          Accent = Color3.fromRGB(0, 120, 255),
+          ...
+      }
+  }
+
+CUSTOM THEMES
+-------------
+Save:
+  ThemeManager:SaveCustomTheme("MyTheme")
+  - Saves as JSON: JopLib/themes/MyTheme.json
+  - Contains all Color3 values as RGB arrays
+
+Load:
+  ThemeManager:LoadCustomTheme("MyTheme")
+  - Reads JSON, applies colors to lib.Theme
+  - Updates all UI elements
+
+List:
+  ThemeManager:_listCustomThemes()
+  - Returns array of custom theme names
+
+LIVE THEME UPDATING (_applyThemeToGui)
+---------------------------------------
+When theme changes, iterates ALL descendants of ScreenGui:
+
+  Frame names:
+    "Box" inside "Toggle_*" -> ToggleOn/ToggleOff based on toggle state
+    "MainFrame", "TitleBar" -> Background
+    "TabBarContainer" -> TabBackground
+    "AccentBar" -> Accent
+    "Groupbox_*", "Tabbox" -> GroupboxBg
+    "Fill" -> SliderFill
+
+  UIStroke:
+    MainFrame/Groupbox borders -> Border
+    Element borders -> ElementBorder
+
+  TextLabel names:
+    "TitleText", "GroupTitle", "Label" -> FontPrimary
+    "Value", "Arrow" -> FontSecondary
+
+  TextButton:
+    "Btn" -> ElementBg + FontPrimary
+    "Tab_*" -> TabActive
+    "DropBtn", "KeyBtn" -> ElementBg
+
+  ScrollingFrame:
+    "LeftColumn", "RightColumn" -> ScrollBarImageColor3 = Accent
+
+UI SETTINGS TAB LAYOUT
+----------------------
+LEFT SIDE:                    RIGHT SIDE:
++-------------+             +-------------+
+|   Config    |             |    Theme    |
+|             |             |             |
+| Config Name |             | ThemeSelector|
+| ConfigList  |             | (dropdown)   |
+| Save Config |             |             |
+| Load Config |             | Color pickers|
+| Delete      |             | (6 pickers)  |
+| Refresh     |             |             |
++-------------+             | CustomTheme  |
+| Auto-load   |             | Name input   |
+| Config      |             | CustomThemes |
+| (toggle)    |             | dropdown     |
++-------------+             |             |
+|   Menu      |             | Save/Load    |
+|             |             | buttons      |
+| Unload btn  |             | Refresh list |
+| Menu keybind|             |             |
+| Show Water- |             | Auto-load    |
+| mark toggle |             | Theme        |
+| Show Keybind|             | (toggle +   |
+| List toggle |             | theme name)  |
+| Keybind     |             |             |
+| Filter      |             +-------------+
++-------------+
+
+AUTO-LOAD THEME SYSTEM
+----------------------
+Files:
+  JopLib/themes/autoload_theme.txt - stores theme name to load
+
+Flow:
+  1. User toggles "Auto-load Theme" ON
+  2. OnChanged fires -> writes current theme name to autoload_theme.txt
+  3. User changes theme -> ThemeSelector:OnChanged fires
+  4. If auto-load ON, updates file AND updates toggle's ValueText display
+  5. Next script execution: LoadAutoloadTheme() reads file
+  6. Applies theme and enables toggle
+
+================================================================================
+5. SAVEMANAGER.LUA - CONFIG SYSTEM
+================================================================================
+
+WHAT GETS SAVED
+---------------
+- All Options (dropdown values, slider values, keybinds, colors)
+- All Toggles (true/false states)
+- Excludes theme-related if IgnoreThemeSettings() called
+- Excludes specific indexes via SetIgnoreIndexes({"MenuKeybind", ...})
+
+FILE STRUCTURE
+--------------
+  JopLib/settings/[name].json
+  JopLib/settings/autoload_config.txt
+
+JSON Format:
+  {
+      "Options": {
+          "ThemeSelector": "Dark",
+          "SliderValue": 50,
+          ...
+      },
+      "Toggles": {
+          "ShowWatermark": true,
+          "ShowKeybindFrame": false,
+          ...
+      }
+  }
+
+AUTO-LOAD CONFIG SYSTEM
+-----------------------
+Files:
+  JopLib/settings/autoload_config.txt - stores config name to load
+
+Flow:
+  1. User toggles "Auto-load Config" ON
+  2. OnChanged fires -> writes current config name to autoload_config.txt
+  3. Next script execution: LoadAutoloadConfig() reads file
+  4. Calls Load(name) to restore all options/toggles
+
+METHODS
+---------
+  SaveManager:SetLibrary(lib)              - Connect to Library
+  SaveManager:SetAutoload(name)            - Set autoload config
+  SaveManager:GetAutoload()                - Get autoload config name
+  SaveManager:LoadAutoloadConfig()         - Load autoload on startup
+  SaveManager:Save(name)                   - Save current state
+  SaveManager:Load(name)                   - Load saved state
+  SaveManager:Delete(name)                 - Delete config
+  SaveManager:GetConfigs()                 - List all configs
+  SaveManager:IgnoreThemeSettings()        - Exclude theme from save
+  SaveManager:SetIgnoreIndexes({...})      - Exclude specific flags
+  SaveManager:BuildConfigSection(tab)      - Create Config UI
+
+================================================================================
+6. DATA FLOW & CONNECTIONS
+================================================================================
+
+EXAMPLE SETUP (from Example.lua)
+--------------------------------
+  -- 1. Create window
+  local Window = Library:CreateWindow({
+      Title = "MyScript",
+      Center = true
+  })
+
+  -- 2. Create tabs
+  local Tabs = {
+      Main = Window:AddTab("Main"),
+      ["UI Settings"] = Window:AddTab("UI Settings"),
+  }
+
+  -- 3. Add Menu groupbox
+  local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+  MenuGroup:AddButton({Text="Unload", Func=function() Library:Unload() end})
+  MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+      Default = "End", NoUI = true
+  })
+
+  -- 4. Connect managers
+  SaveManager:BuildConfigSection(Tabs["UI Settings"])  -- Creates Config UI
+  ThemeManager:ApplyToTab(Tabs["UI Settings"], MenuGroup)  -- Creates Theme UI
+
+  -- 5. Load auto-saved settings
+  SaveManager:LoadAutoloadConfig()
+  ThemeManager:LoadAutoloadTheme()
+
+GLOBAL ACCESS PATTERN
+----------------------
+  -- Reading values
+  if getgenv().Toggles.ShowWatermark.Value then
+      -- watermark is enabled
+  end
+
+  local themeName = getgenv().Options.ThemeSelector.Value
+
+  -- Listening to changes
+  getgenv().Toggles.ShowWatermark:OnChanged(function(newVal)
+      -- do something when toggle changes
+  end)
+
+  getgenv().Options.ThemeSelector:OnChanged(function(newVal)
+      -- do something when theme changes
+  end)
+
+================================================================================
+7. FILE STRUCTURE
+================================================================================
+
+EXECUTION FOLDER:
+  JopLib/                              -- Base folder
+      settings/                          -- Config files
+          my_config.json                 -- Saved config
+          autoload_config.txt            -- Config auto-load
+      themes/                            -- Theme files
+          MyTheme.json                   -- Custom theme
+          autoload_theme.txt             -- Theme auto-load
+
+GITHUB REPO:
+  Library.lua      -- Core window/popup/notification system
+  Elements.lua     -- UI components (toggle, dropdown, slider, etc.)
+  ThemeManager.lua -- Theme management
+  SaveManager.lua  -- Config save/load
+  Example.lua      -- Usage example
+  README.md        -- Basic documentation
+
+================================================================================
+8. KEY TECHNICAL DETAILS
+================================================================================
+
+TWEENING
+--------
+All smooth animations use TweenService:
+  
+  Tween(object, {Property = value}, duration):Play()
+
+Examples:
+  - Toggle box color change: 0.15s
+  - Popup open/close: 0.2s
+  - Notification fade: 0.3s
+
+ZINDEX MANAGEMENT
+-----------------
+  Main window:     ZIndex 10
+  Popups:          ZIndex 50+
+  Click catcher:   ZIndex 100 (invisible full-screen frame)
+
+POPUP POSITION TRACKING
+-----------------------
+Dropdowns track parent button position every heartbeat:
+
+  dropTrackConn = RunService.Heartbeat:Connect(function()
+      dropList.Position = UDim2.new(0, ap.X, 0, ap.Y + as.Y + 2)
+  end)
+
+FONT SYSTEM
+-----------
+Library defines font faces:
+
+  Library.FontRegular  = Font.new("rbxasset://fonts/families/GothamSSm.json")
+  Library.FontSemiBold = Font.new("rbxasset://fonts/families/GothamSSm.json", 
+                                  Enum.FontWeight.SemiBold)
+  Library.FontBold     = Font.new("rbxasset://fonts/families/GothamSSm.json",
+                                  Enum.FontWeight.Bold)
+
+TEXT SIZES
+----------
+  Window title:     16px (Bold)
+  Groupbox title:   14px (Bold)
+  Toggle label:     13px (Regular)
+  Toggle value:     12px (Regular)
+  Dropdown text:    12px (Regular)
+  Keybind mode:     11px (Regular)
+  Notification:     14px (Regular)
+  Watermark:        14px (Regular)
+  Keybind list:     13px (Regular)
+  Keybind entry:    13px (Regular/12px for mode)
+
+CORNER RADII
+------------
+  Main window:      8px
+  Groupbox:         6px
+  Toggle box:       3px
+  Button:           4px
+  Input:            4px
+  Dropdown:         4px
+  Notification:     6px
+  Watermark:        6px
+  Keybind list:     6px
+
+COLORS (Default Theme)
+-----------------------
+  Background:       30, 30, 30
+  TabBackground:    35, 35, 35
+  TabActive:        40, 40, 40
+  TabInactive:      30, 30, 30
+  GroupboxBg:       30, 30, 30
+  ElementBg:        35, 35, 35
+  ElementBorder:    50, 50, 50
+  Border:           45, 45, 45
+  FontPrimary:      220, 220, 220
+  FontSecondary:    160, 160, 160
+  Accent:           96, 105, 255
+  ToggleOn:         96, 105, 255
+  ToggleOff:        50, 50, 50
+  SliderFill:       96, 105, 255
+
+FLAG NAMING CONVENTION
+-----------------------
+  Use PascalCase for multi-word flags:
+    "ShowWatermark"
+    "AutoLoadTheme"
+    "ThemeSelector"
+    "MenuKeybind"
+
+================================================================================
+                              END OF DOCUMENTATION
+================================================================================
