@@ -318,3 +318,4 @@ SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"], MenuGroup)
 
 SaveManager:LoadAutoloadConfig()
+ThemeManager:LoadAutoloadTheme()

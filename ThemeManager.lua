@@ -276,6 +276,9 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
+        if getgenv().Toggles.AutoLoadTheme and getgenv().Toggles.AutoLoadTheme.Value then
+            ThemeManager:SaveCurrentTheme()
+        end
     end)
 
     -- Color pickers
@@ -412,6 +415,19 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Default = false,
     })
 
+    getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
+        local folder = ThemeManager:_ensureFolder()
+        pcall(function()
+            if val then
+                -- Save which theme is currently selected
+                local builtIn = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+                writefile(folder .. "/autoload.txt", builtIn)
+            else
+                pcall(function() delfile(folder .. "/autoload.txt") end)
+            end
+        end)
+    end)
+
     -- ── Menu toggles (added to existing Menu groupbox if provided) ──
     local menu = menuGroupbox or tab:AddLeftGroupbox("Menu")
 
@@ -463,16 +479,33 @@ function ThemeManager:ApplyToGroupbox(groupbox)
     end)
 end
 
+function ThemeManager:SaveCurrentTheme()
+    local folder = self:_ensureFolder()
+    local builtIn = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+    pcall(function()
+        writefile(folder .. "/autoload.txt", builtIn)
+    end)
+end
+
 function ThemeManager:LoadAutoloadTheme()
-    if getgenv().Toggles.AutoLoadTheme and getgenv().Toggles.AutoLoadTheme.Value then
-        local folder = ThemeManager.Folder .. "/themes"
-        local ok, content = pcall(function() return readfile(folder .. "/current.txt") end)
-        if ok and content then
-            ThemeManager:SetTheme(content)
-            if getgenv().Options.ThemeSelector then
-                getgenv().Options.ThemeSelector:SetValue(content)
-            end
+    local folder = self:_getCustomThemesFolder()
+    local ok, content = pcall(function() return readfile(folder .. "/autoload.txt") end)
+    if not ok or not content or content == "" then return end
+
+    -- Try built-in theme first
+    if self.BuiltInThemes[content] then
+        self:SetTheme(content)
+        if getgenv().Options.ThemeSelector then
+            getgenv().Options.ThemeSelector:SetValue(content)
         end
+    else
+        -- Try custom theme
+        self:LoadCustomTheme(content)
+    end
+
+    -- Enable the toggle
+    if getgenv().Toggles.AutoLoadTheme then
+        getgenv().Toggles.AutoLoadTheme:SetValue(true)
     end
 end
 
