@@ -294,15 +294,15 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
+        -- Skip saving if we're in the middle of loading autoload theme
+        if ThemeManager._loadingAutoTheme then return end
         local autoToggle = getgenv().Toggles.AutoLoadTheme
         if autoToggle then
+            -- Always update the display text
+            autoToggle:SetValueText(val)
             if autoToggle.Value then
-                -- Update display and save
-                autoToggle:SetValueText(val)
-                ThemeManager:SaveCurrentTheme()
-            else
-                -- Just update display (in case they enable auto-load later)
-                autoToggle:SetValueText(val)
+                -- Save the new theme as autoload
+                ThemeManager:_saveAutoloadSilent(val)
             end
         end
     end)
@@ -514,24 +514,26 @@ function ThemeManager:ApplyToGroupbox(groupbox)
     end)
 end
 
-function ThemeManager:SaveCurrentTheme()
+function ThemeManager:_saveAutoloadSilent(themeName)
+    self:_ensureFolders()
     local path = self:_getAutoloadPath()
-    local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-    local lib = self.Library
-    local ok, err = pcall(function()
+    pcall(function()
         writefile(path, themeName)
     end)
+end
+
+function ThemeManager:SaveCurrentTheme()
+    local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+    self:_saveAutoloadSilent(themeName)
+    local lib = self.Library
     if lib and lib.Notify then
-        if ok then
-            lib:Notify("Auto-load saved: " .. themeName, 2)
-        else
-            lib:Notify("Auto-load save failed: " .. tostring(err), 3)
-        end
+        lib:Notify("Auto-load saved: " .. themeName, 2)
     end
 end
 
 function ThemeManager:LoadAutoloadTheme()
     task.defer(function()
+        self:_ensureFolders()
         local path = self:_getAutoloadPath()
         local ok, content = pcall(function() return readfile(path) end)
         if not ok or not content then return end
@@ -542,6 +544,10 @@ function ThemeManager:LoadAutoloadTheme()
         if lib and lib.Notify then
             lib:Notify("Auto-loading theme: " .. content, 2)
         end
+
+        -- Set guard BEFORE any theme operations to prevent
+        -- OnChanged callbacks from re-saving during load
+        self._loadingAutoTheme = true
 
         -- Try built-in theme first
         if self.BuiltInThemes[content] then
@@ -554,12 +560,12 @@ function ThemeManager:LoadAutoloadTheme()
             self:LoadCustomTheme(content)
         end
 
-        -- Enable the toggle without triggering a re-save
-        self._loadingAutoTheme = true
-        task.wait(0.1)
+        -- Enable the toggle (guard prevents OnChanged from re-saving)
         if getgenv().Toggles.AutoLoadTheme then
             getgenv().Toggles.AutoLoadTheme:SetValue(true)
+            getgenv().Toggles.AutoLoadTheme:SetValueText(content)
         end
+
         self._loadingAutoTheme = false
     end)
 end
