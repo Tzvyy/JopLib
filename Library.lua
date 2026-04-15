@@ -187,13 +187,6 @@ function Library:Notify(text, duration)
     }, {
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
-        Create("Frame", {
-            Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 6),
-            Position = UDim2.new(0, 0, 0, 9),
-            BackgroundColor3 = self.Theme.Accent,
-            BorderSizePixel = 0,
-        }),
         Create("TextLabel", {
             Name = "Text",
             Size = UDim2.new(1, -16, 1, -12),
@@ -255,13 +248,6 @@ function Library:CreateWatermark()
             PaddingLeft = UDim.new(0, 8),
             PaddingRight = UDim.new(0, 8),
         }),
-        Create("Frame", {
-            Name = "AccentBar",
-            Size = UDim2.new(1, 16, 0, 6),
-            Position = UDim2.new(0, -8, 0, 9),
-            BackgroundColor3 = self.Theme.Accent,
-            BorderSizePixel = 0,
-        }),
         Create("TextLabel", {
             Name = "Text",
             Size = UDim2.new(0, 0, 1, 0),
@@ -317,17 +303,10 @@ function Library:CreateKeybindFrame()
     }, {
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
-        Create("Frame", {
-            Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 6),
-            Position = UDim2.new(0, 0, 0, 9),
-            BackgroundColor3 = self.Theme.Accent,
-            BorderSizePixel = 0,
-        }),
         Create("TextLabel", {
             Name = "Title",
             Size = UDim2.new(1, -8, 0, 24),
-            Position = UDim2.new(0, 6, 0, 6),
+            Position = UDim2.new(0, 6, 0, 3),
             BackgroundTransparency = 1,
             Text = "Keybinds",
             TextColor3 = self.Theme.FontSecondary,
