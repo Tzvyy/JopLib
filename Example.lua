@@ -1,17 +1,5 @@
---[[
-    JopLib - Example Usage Script
-    Shows all available UI elements and features
-    
-    Load from GitHub (replace with your actual URL):
-    local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
-    
-    Load locally (if using readfile):
-    local repo = "JopLib/"
-]]
-
--- ============================================================
--- LOADING (GitHub method)
--- ============================================================
+-- JopLib Example Script
+-- Matches Linoria-style API for testing all features
 
 local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
 
@@ -20,344 +8,313 @@ local Elements = loadstring(game:HttpGet(repo .. "Elements.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo .. "ThemeManager.lua"))()
 local SaveManager = loadstring(game:HttpGet(repo .. "SaveManager.lua"))()
 
--- Initialize elements (MUST call before CreateWindow)
 Elements:Setup(Library)
-
--- Connect managers
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
-
--- ============================================================
--- CREATE WINDOW
--- ============================================================
 
 local Window = Library:CreateWindow({
     Title = "JopLib Example",
     Center = true,
     AutoShow = true,
-    Width = 550,
-    Height = 400,
+    TabPadding = 8,
 })
 
--- ============================================================
--- TABS
--- ============================================================
-
 local Tabs = {
-    Combat   = Window:AddTab("Combat"),
-    Visuals  = Window:AddTab("Visuals"),
-    Movement = Window:AddTab("Movement"),
-    Settings = Window:AddTab("Settings"),
+    Main = Window:AddTab("Main"),
+    ["UI Settings"] = Window:AddTab("UI Settings"),
 }
 
 -- ============================================================
--- COMBAT TAB
+-- LEFT GROUPBOX
 -- ============================================================
 
-local AimbotGroup = Tabs.Combat:AddLeftGroupbox("Aimbot")
+local LeftGroupBox = Tabs.Main:AddLeftGroupbox("Groupbox")
 
-AimbotGroup:AddToggle("AimbotEnabled", {
-    Text = "Enable Aimbot",
-    Default = false,
-}):AddKeyPicker("AimbotKey", {
-    Default = "None",
-    Text = "Aimbot",
-}):OnChanged(function(value)
-    print("[Aimbot Key]", value)
-end)
+-- Toggle
+LeftGroupBox:AddToggle("MyToggle", {
+    Text = "This is a toggle",
+    Default = true,
 
-Toggles.AimbotEnabled:OnChanged(function(value)
-    print("[Aimbot]", value)
-end)
-
-AimbotGroup:AddToggle("ShowFOV", {
-    Text = "Show FOV Circle",
-    Default = false,
+    Callback = function(Value)
+        print("[cb] MyToggle changed to:", Value)
+    end,
 })
 
-AimbotGroup:AddSlider("AimFOV", {
-    Text = "FOV Radius",
-    Default = 250,
-    Min = 50,
-    Max = 800,
-    Rounding = 0,
-    Suffix = " px",
-}):OnChanged(function(value)
-    print("[FOV]", value)
+Toggles.MyToggle:OnChanged(function()
+    print("MyToggle changed to:", Toggles.MyToggle.Value)
 end)
 
-AimbotGroup:AddSlider("AimSmooth", {
-    Text = "Smoothing",
-    Default = 5,
-    Min = 1,
-    Max = 20,
-    Rounding = 0,
-}):OnChanged(function(value)
-    print("[Smoothing]", value)
+Toggles.MyToggle:SetValue(false)
+
+-- Button
+local MyButton = LeftGroupBox:AddButton({
+    Text = "Button",
+    Func = function()
+        print("You clicked a button!")
+    end,
+    DoubleClick = false,
+})
+
+MyButton:AddButton({
+    Text = "Sub button",
+    Func = function()
+        print("You clicked a sub button!")
+    end,
+    DoubleClick = true,
+})
+
+-- Label
+LeftGroupBox:AddLabel("This is a label")
+LeftGroupBox:AddLabel("This is a label\n\nwhich wraps its text!", true)
+
+-- Divider
+LeftGroupBox:AddDivider()
+
+-- Slider
+LeftGroupBox:AddSlider("MySlider", {
+    Text = "This is my slider!",
+    Default = 0,
+    Min = 0,
+    Max = 5,
+    Rounding = 1,
+    Compact = false,
+
+    Callback = function(Value)
+        print("[cb] MySlider was changed! New value:", Value)
+    end,
+})
+
+Options.MySlider:OnChanged(function()
+    print("MySlider was changed! New value:", Options.MySlider.Value)
 end)
 
-AimbotGroup:AddDropdown("AimTarget", {
-    Text = "Target Part",
-    Values = { "Head", "HumanoidRootPart", "UpperTorso", "LowerTorso" },
+Options.MySlider:SetValue(3)
+
+-- Input
+LeftGroupBox:AddInput("MyTextbox", {
+    Default = "My textbox!",
+    Numeric = false,
+    Finished = false,
+    Text = "This is a textbox",
+    Placeholder = "Placeholder text",
+
+    Callback = function(Value)
+        print("[cb] Text updated. New text:", Value)
+    end,
+})
+
+Options.MyTextbox:OnChanged(function()
+    print("Text updated. New text:", Options.MyTextbox.Value)
+end)
+
+-- Dropdown
+LeftGroupBox:AddDropdown("MyDropdown", {
+    Values = { "This", "is", "a", "dropdown" },
     Default = 1,
-}):OnChanged(function(value)
-    print("[Target Part]", value)
+    Multi = false,
+    Text = "A dropdown",
+
+    Callback = function(Value)
+        print("[cb] Dropdown got changed. New value:", Value)
+    end,
+})
+
+Options.MyDropdown:OnChanged(function()
+    print("Dropdown got changed. New value:", Options.MyDropdown.Value)
 end)
 
-AimbotGroup:AddLabel("Hold mouse to lock on")
-AimbotGroup:AddLabel("Smoothing 1 = instant snap")
+Options.MyDropdown:SetValue("This")
 
--- Silent Aim group
-local SilentGroup = Tabs.Combat:AddRightGroupbox("Silent Aim")
-
-SilentGroup:AddToggle("SilentAimEnabled", {
-    Text = "Enable Silent Aim",
-    Default = false,
-}):AddKeyPicker("SilentAimKey", {
-    Default = "None",
-    Text = "Silent Aim",
-})
-
-SilentGroup:AddSlider("SilentFOV", {
-    Text = "FOV Radius",
-    Default = 250,
-    Min = 30,
-    Max = 800,
-    Rounding = 0,
-})
-
-SilentGroup:AddDivider()
-
-SilentGroup:AddToggle("InstantBullet", {
-    Text = "Instant Bullet",
-    Default = false,
-}):AddKeyPicker("InstantBulletKey", {
-    Default = "None",
-    Text = "Instant Bullet",
-})
-
-SilentGroup:AddLabel("Teleports bullet to target")
-
--- ============================================================
--- VISUALS TAB
--- ============================================================
-
-local ESPGroup = Tabs.Visuals:AddLeftGroupbox("ESP")
-
-ESPGroup:AddToggle("ESPEnabled", {
-    Text = "Enable ESP",
-    Default = false,
-}):OnChanged(function(value)
-    print("[ESP]", value)
-end)
-
-ESPGroup:AddToggle("ESPBox", {
-    Text = "Show Box",
-    Default = true,
-}):AddColorPicker("ESPBoxColor", {
-    Default = Color3.fromRGB(255, 50, 50),
-}):OnChanged(function(value)
-    print("[ESP Box]", value)
-end)
-
-Options.ESPBoxColor:OnChanged(function(color)
-    print("[Box Color]", color)
-end)
-
-ESPGroup:AddToggle("ESPNames", {
-    Text = "Show Names",
-    Default = true,
-}):AddColorPicker("ESPNameColor", {
-    Default = Color3.fromRGB(255, 255, 255),
-})
-
-ESPGroup:AddToggle("ESPHealth", {
-    Text = "Show Health Bar",
-    Default = true,
-})
-
-ESPGroup:AddSlider("ESPMaxDist", {
-    Text = "Max Distance",
-    Default = 1000,
-    Min = 100,
-    Max = 5000,
-    Rounding = 0,
-})
-
--- World visuals
-local WorldGroup = Tabs.Visuals:AddRightGroupbox("World")
-
-WorldGroup:AddToggle("Fullbright", {
-    Text = "Fullbright",
-    Default = false,
-})
-
-WorldGroup:AddToggle("NoFog", {
-    Text = "No Fog",
-    Default = false,
-})
-
-WorldGroup:AddToggle("NoGrass", {
-    Text = "No Grass",
-    Default = false,
-})
-
--- ============================================================
--- MOVEMENT TAB
--- ============================================================
-
-local SpeedGroup = Tabs.Movement:AddLeftGroupbox("Speed")
-
-SpeedGroup:AddToggle("SpeedEnabled", {
-    Text = "Enable Speed",
-    Default = false,
-}):AddKeyPicker("SpeedKey", {
-    Default = "None",
-    Text = "Speed",
-})
-
-SpeedGroup:AddDropdown("SpeedMethod", {
-    Text = "Method",
-    Values = { "CFrame Burst", "CFrame Smooth" },
+-- Multi dropdown
+LeftGroupBox:AddDropdown("MyMultiDropdown", {
+    Values = { "This", "is", "a", "dropdown" },
     Default = 1,
-}):OnChanged(function(value)
-    print("[Speed Method]", value)
-end)
-
-SpeedGroup:AddSlider("SpeedValue", {
-    Text = "Speed",
-    Default = 28,
-    Min = 16,
-    Max = 100,
-    Rounding = 0,
-    Suffix = " studs/s",
-})
-
-SpeedGroup:AddDivider()
-SpeedGroup:AddLabel("Burst = move/pause cycles")
-SpeedGroup:AddLabel("Smooth = constant, keep low")
-
--- Spider
-local SpiderGroup = Tabs.Movement:AddLeftGroupbox("Spiderman")
-
-SpiderGroup:AddToggle("SpiderEnabled", {
-    Text = "Enable Spiderman",
-    Default = false,
-}):AddKeyPicker("SpiderKey", {
-    Default = "None",
-    Text = "Spiderman",
-})
-
-SpiderGroup:AddSlider("SpiderSpeed", {
-    Text = "Climb Speed",
-    Default = 24,
-    Min = 10,
-    Max = 60,
-    Rounding = 0,
-    Suffix = " studs/s",
-})
-
--- Third Person
-local TPGroup = Tabs.Movement:AddRightGroupbox("Third Person")
-
-TPGroup:AddToggle("ThirdPerson", {
-    Text = "Enable Third Person",
-    Default = false,
-}):AddKeyPicker("ThirdPersonKey", {
-    Default = "None",
-    Text = "Third Person",
-})
-
-TPGroup:AddSlider("TPCamDist", {
-    Text = "Camera Distance",
-    Default = 10,
-    Min = 2,
-    Max = 30,
-    Rounding = 0,
-    Suffix = " studs",
-})
-
--- Text Input example
-local MiscGroup = Tabs.Movement:AddRightGroupbox("Misc")
-
-MiscGroup:AddInput("PlayerName", {
-    Text = "Player Name",
-    Default = "",
-    Placeholder = "Enter name...",
-}):OnChanged(function(value)
-    print("[Player Name]", value)
-end)
-
--- Multi-select dropdown example
-MiscGroup:AddDropdown("Features", {
-    Text = "Features",
-    Values = { "Speed", "Fly", "Noclip", "Teleport" },
     Multi = true,
-    Default = {},
-}):OnChanged(function(value)
-    print("[Features]", value)
+    Text = "A multi dropdown",
+
+    Callback = function(Value)
+        print("[cb] Multi dropdown got changed:", Value)
+    end,
+})
+
+Options.MyMultiDropdown:OnChanged(function()
+    print("Multi dropdown got changed:")
+    for key, value in next, Options.MyMultiDropdown.Value do
+        print(key, value)
+    end
 end)
 
--- Dependency Box example
-local depBox = MiscGroup:AddDependencyBox()
-depBox:SetupDependencies({
-    { Flag = "SpeedEnabled" },
+Options.MyMultiDropdown:SetValue({
+    This = true,
+    is = true,
 })
-depBox:AddSlider("BurstOn", {
-    Text = "Burst Duration",
-    Default = 0.3,
-    Min = 0.1,
-    Max = 1.0,
-    Rounding = 2,
-    Suffix = "s",
+
+-- ColorPicker on a Label
+LeftGroupBox:AddLabel("Color"):AddColorPicker("ColorPicker", {
+    Default = Color3.new(0, 1, 0),
+    Title = "Some color",
+
+    Callback = function(Value)
+        print("[cb] Color changed!", Value)
+    end,
 })
-depBox:AddLabel("Only visible when Speed is enabled")
+
+Options.ColorPicker:OnChanged(function()
+    print("Color changed!", Options.ColorPicker.Value)
+end)
+
+-- KeyPicker on a Label
+LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
+    Default = "MB2",
+    SyncToggleState = false,
+    Mode = "Toggle",
+    Text = "Auto lockpick safes",
+    NoUI = false,
+
+    Callback = function(Value)
+        print("[cb] Keybind clicked!", Value)
+    end,
+
+    ChangedCallback = function(New)
+        print("[cb] Keybind changed!", New)
+    end,
+})
+
+Options.KeyPicker:OnClick(function()
+    print("Keybind clicked!", Options.KeyPicker:GetState())
+end)
+
+Options.KeyPicker:OnChanged(function()
+    print("Keybind changed!", Options.KeyPicker.Value)
+end)
+
+task.spawn(function()
+    while true do
+        wait(1)
+        local state = Options.KeyPicker:GetState()
+        if state then
+            print("KeyPicker is being held down")
+        end
+        if Library.Unloaded then break end
+    end
+end)
+
+Options.KeyPicker:SetValue({ "MB2", "Toggle" })
 
 -- ============================================================
--- SETTINGS TAB
+-- LEFT GROUPBOX #2 (long content for scroll testing)
 -- ============================================================
 
-local MenuGroup = Tabs.Settings:AddLeftGroupbox("Menu")
+local LeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Groupbox #2")
+LeftGroupBox2:AddLabel("Oh no...\nThis label spans multiple lines!\n\nWe're gonna run out of UI space...\nJust kidding! Scroll down!\n\n\nHello from below!", true)
 
-MenuGroup:AddButton("Unload Script", function()
-    Library:Unload()
-    print("[Script] Unloaded.")
-end, { DoubleConfirm = true })
+-- ============================================================
+-- RIGHT TABBOX
+-- ============================================================
 
-MenuGroup:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", {
+local TabBox = Tabs.Main:AddRightTabbox()
+
+local Tab1 = TabBox:AddTab("Tab 1")
+Tab1:AddToggle("Tab1Toggle", { Text = "Tab1 Toggle" })
+Tab1:AddSlider("Tab1Slider", { Text = "Tab1 Slider", Default = 50, Min = 0, Max = 100, Rounding = 0 })
+
+local Tab2 = TabBox:AddTab("Tab 2")
+Tab2:AddToggle("Tab2Toggle", { Text = "Tab2 Toggle" })
+Tab2:AddDropdown("Tab2Drop", { Text = "Tab2 Dropdown", Values = {"Option A", "Option B", "Option C"}, Default = 1 })
+
+-- ============================================================
+-- DEPENDENCY BOX
+-- ============================================================
+
+local RightGroupbox = Tabs.Main:AddRightGroupbox("Groupbox #3")
+RightGroupbox:AddToggle("ControlToggle", { Text = "Dependency box toggle" })
+
+local Depbox = RightGroupbox:AddDependencyBox()
+Depbox:AddToggle("DepboxToggle", { Text = "Sub-dependency box toggle" })
+
+local SubDepbox = Depbox:AddDependencyBox()
+SubDepbox:AddSlider("DepboxSlider", { Text = "Slider", Default = 50, Min = 0, Max = 100, Rounding = 0 })
+SubDepbox:AddDropdown("DepboxDropdown", { Text = "Dropdown", Default = 1, Values = {"a", "b", "c"} })
+
+Depbox:SetupDependencies({
+    { Toggles.ControlToggle, true },
+})
+
+SubDepbox:SetupDependencies({
+    { Toggles.DepboxToggle, true },
+})
+
+-- ============================================================
+-- WATERMARK
+-- ============================================================
+
+Library:SetWatermarkVisibility(true)
+
+local FrameTimer = tick()
+local FrameCounter = 0
+local FPS = 60
+
+local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(function()
+    FrameCounter += 1
+
+    if (tick() - FrameTimer) >= 1 then
+        FPS = FrameCounter
+        FrameTimer = tick()
+        FrameCounter = 0
+    end
+
+    Library:SetWatermark(("JopLib demo | %s fps | %s ms"):format(
+        math.floor(FPS),
+        math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+    ))
+end)
+
+-- ============================================================
+-- KEYBIND FRAME
+-- ============================================================
+
+Library.KeybindFrame.Visible = true
+
+-- ============================================================
+-- UNLOAD HANDLER
+-- ============================================================
+
+Library:OnUnload(function()
+    WatermarkConnection:Disconnect()
+    print("Unloaded!")
+    Library.Unloaded = true
+end)
+
+-- ============================================================
+-- UI SETTINGS TAB
+-- ============================================================
+
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+
+MenuGroup:AddButton({
+    Text = "Unload",
+    Func = function() Library:Unload() end,
+})
+
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
     Default = "End",
-    Text = "Menu Toggle",
+    NoUI = true,
+    Text = "Menu keybind",
 })
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Theme & Config
-ThemeManager:SetFolder("JopLib")
-SaveManager:SetFolder("JopLib/configs")
+-- ============================================================
+-- THEME + CONFIG (addons)
+-- ============================================================
+
+ThemeManager:SetFolder("MyScriptHub")
+SaveManager:SetFolder("MyScriptHub/specific-game")
+
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
 
-ThemeManager:ApplyToTab(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
--- Auto-load config
 SaveManager:LoadAutoloadConfig()
-
--- ============================================================
--- MODULE LIST (optional)
--- ============================================================
-
-Library:AddModule({ Name = "Speed",         Toggle = "SpeedEnabled",   Keybind = "SpeedKey" })
-Library:AddModule({ Name = "Spiderman",     Toggle = "SpiderEnabled",  Keybind = "SpiderKey" })
-Library:AddModule({ Name = "Third Person",  Toggle = "ThirdPerson",    Keybind = "ThirdPersonKey" })
-Library:AddModule({ Name = "Aimbot",        Toggle = "AimbotEnabled",  Keybind = "AimbotKey" })
-Library:AddModule({ Name = "Silent Aim",    Toggle = "SilentAimEnabled", Keybind = "SilentAimKey" })
-Library:AddModule({ Name = "ESP",           Toggle = "ESPEnabled" })
-Library:AddModule({ Name = "Fullbright",    Toggle = "Fullbright" })
-
--- To show the module list:
--- Library.ModuleListEnabled = true
--- Library:CreateModuleListGui()
-
-Library:Notify("JopLib Example loaded!", 3)
-print("[JopLib] Example script loaded successfully!")

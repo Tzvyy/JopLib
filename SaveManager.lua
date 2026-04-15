@@ -32,13 +32,31 @@ end
 function SaveManager:IgnoreThemeSettings()
     self.IgnoreTheme = true
     self.IgnoreIndexes["ThemeSelector"] = true
+    self.IgnoreIndexes["AutoLoadTheme"] = true
+    self.IgnoreIndexes["ShowWatermark"] = true
+    self.IgnoreIndexes["ShowKeybindFrame"] = true
+    for key, _ in pairs(self.Library and self.Library.Theme or {}) do
+        self.IgnoreIndexes["ThemeColor_" .. key] = true
+    end
 end
 
 function SaveManager:_ensureFolder()
     if typeof(isfolder) ~= "function" then return false end
-    if not isfolder(self.Folder) then
-        makefolder(self.Folder)
+    -- Create parent folders recursively
+    local parts = self.Folder:split("/")
+    local path = ""
+    for _, part in ipairs(parts) do
+        path = path == "" and part or (path .. "/" .. part)
+        if not isfolder(path) then
+            makefolder(path)
+        end
     end
+    return true
+end
+
+function SaveManager:_ensureBaseFolder()
+    if typeof(isfolder) ~= "function" then return false end
+    if not isfolder("JopLib") then makefolder("JopLib") end
     return true
 end
 
@@ -52,7 +70,6 @@ function SaveManager:_serialize()
     local toggles = getgenv().Toggles or {}
     local options = getgenv().Options or {}
 
-    -- Save toggles
     for flag, toggle in pairs(toggles) do
         if self.IgnoreIndexes[flag] then continue end
         if toggle.Type == "Toggle" then
@@ -60,7 +77,6 @@ function SaveManager:_serialize()
         end
     end
 
-    -- Save options (sliders, dropdowns, inputs, keypickers, colorpickers)
     for flag, option in pairs(options) do
         if self.IgnoreIndexes[flag] then continue end
 
@@ -69,7 +85,6 @@ function SaveManager:_serialize()
 
         elseif option.Type == "Dropdown" then
             if option.Multi then
-                -- Multi dropdown: save as list of selected keys
                 local selected = {}
                 for k, v in pairs(option.Value) do
                     if v then table.insert(selected, k) end
@@ -124,7 +139,7 @@ function SaveManager:_deserialize(data)
             pcall(function() options[flag]:SetValue(entry.value) end)
 
         elseif entry.type == "KeyPicker" and options[flag] then
-            pcall(function() options[flag]:SetValue(entry.value, entry.mode) end)
+            pcall(function() options[flag]:SetValue({entry.value, entry.mode}) end)
 
         elseif entry.type == "ColorPicker" and options[flag] then
             local c = entry.value
@@ -174,7 +189,8 @@ end
 function SaveManager:GetConfigs()
     if typeof(listfiles) ~= "function" then return {} end
     self:_ensureFolder()
-    local files = listfiles(self.Folder)
+    local ok, files = pcall(listfiles, self.Folder)
+    if not ok then return {} end
     local configs = {}
     for _, path in ipairs(files) do
         local name = path:match("([^/\\]+)%.json$")
@@ -223,51 +239,77 @@ function SaveManager:BuildConfigSection(tab)
         Placeholder = "my_config",
     })
 
-    right:AddButton("Save Config", function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-        if name == "" then
-            if lib.Notify then lib:Notify("Enter a config name first!", 2) end
-            return
-        end
-        local ok = self:Save(name)
-        if ok and lib.Notify then lib:Notify("Config saved: " .. name, 2) end
-    end)
-
-    right:AddButton("Load Config", function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-        if name == "" then
-            if lib.Notify then lib:Notify("Enter a config name first!", 2) end
-            return
-        end
-        local ok = self:Load(name)
-        if ok and lib.Notify then lib:Notify("Config loaded: " .. name, 2) end
-        if not ok and lib.Notify then lib:Notify("Config not found: " .. name, 2) end
-    end)
-
-    right:AddButton("Delete Config", function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-        if name == "" then return end
-        self:Delete(name)
-        if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
-    end, { DoubleConfirm = true })
-
-    right:AddButton("Refresh Config List", function()
-        local configs = self:GetConfigs()
-        if getgenv().Options.ConfigList then
-            getgenv().Options.ConfigList:SetValues(configs)
-        end
-        if lib.Notify then lib:Notify("Found " .. #configs .. " configs", 2) end
-    end)
-
     local configs = self:GetConfigs()
     right:AddDropdown("ConfigList", {
         Text = "Saved Configs",
         Values = configs,
         Default = configs[1],
-        Callback = function(val)
-            if getgenv().Options.ConfigName then
-                getgenv().Options.ConfigName:SetValue(val)
+    })
+
+    getgenv().Options.ConfigList:OnChanged(function()
+        local val = getgenv().Options.ConfigList.Value
+        if val and getgenv().Options.ConfigName then
+            getgenv().Options.ConfigName:SetValue(val)
+        end
+    end)
+
+    right:AddButton({
+        Text = "Save Config",
+        Func = function()
+            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+            if name == "" then
+                if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+                return
             end
+            local ok = self:Save(name)
+            if ok then
+                if lib.Notify then lib:Notify("Config saved: " .. name, 2) end
+                -- Refresh list
+                local newConfigs = self:GetConfigs()
+                if getgenv().Options.ConfigList then
+                    getgenv().Options.ConfigList:SetValues(newConfigs)
+                end
+            end
+        end,
+    })
+
+    right:AddButton({
+        Text = "Load Config",
+        Func = function()
+            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+            if name == "" then
+                if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+                return
+            end
+            local ok = self:Load(name)
+            if ok and lib.Notify then lib:Notify("Config loaded: " .. name, 2) end
+            if not ok and lib.Notify then lib:Notify("Config not found: " .. name, 2) end
+        end,
+    })
+
+    right:AddButton({
+        Text = "Delete Config",
+        Func = function()
+            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+            if name == "" then return end
+            self:Delete(name)
+            if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
+            local newConfigs = self:GetConfigs()
+            if getgenv().Options.ConfigList then
+                getgenv().Options.ConfigList:SetValues(newConfigs)
+            end
+        end,
+        DoubleClick = true,
+    })
+
+    right:AddButton({
+        Text = "Refresh Config List",
+        Func = function()
+            local newConfigs = self:GetConfigs()
+            if getgenv().Options.ConfigList then
+                getgenv().Options.ConfigList:SetValues(newConfigs)
+            end
+            if lib.Notify then lib:Notify("Found " .. #newConfigs .. " configs", 2) end
         end,
     })
 
@@ -276,22 +318,24 @@ function SaveManager:BuildConfigSection(tab)
     right:AddToggle("AutoloadEnabled", {
         Text = "Auto-load Config",
         Default = self:GetAutoload() ~= nil,
-        Callback = function(val)
-            if val then
-                local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-                if name ~= "" then
-                    self:SetAutoload(name)
-                    if lib.Notify then lib:Notify("Autoload set: " .. name, 2) end
-                end
-            else
-                pcall(function()
-                    if typeof(delfile) == "function" then
-                        delfile(self.Folder .. "/autoload.txt")
-                    end
-                end)
-            end
-        end,
     })
+
+    getgenv().Toggles.AutoloadEnabled:OnChanged(function()
+        local val = getgenv().Toggles.AutoloadEnabled.Value
+        if val then
+            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+            if name ~= "" then
+                self:SetAutoload(name)
+                if lib.Notify then lib:Notify("Autoload set: " .. name, 2) end
+            end
+        else
+            pcall(function()
+                if typeof(delfile) == "function" then
+                    delfile(self.Folder .. "/autoload.txt")
+                end
+            end)
+        end
+    end)
 end
 
 return SaveManager

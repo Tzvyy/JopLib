@@ -8,10 +8,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- ============================================================
--- UTILITY
--- ============================================================
-
 local function Create(class, props, children)
     local inst = Instance.new(class)
     for k, v in pairs(props or {}) do
@@ -32,11 +28,6 @@ local function Tween(inst, props, duration)
     duration = duration or 0.15
     return TweenService:Create(inst, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
 end
-
--- ============================================================
--- SETUP: Inject methods into Groupbox
--- Called once to wire up Library reference
--- ============================================================
 
 local Elements = {}
 
@@ -72,23 +63,14 @@ function Elements:Setup(Library)
 
         function toggleObj:SetValue(val)
             self.Value = val
-            -- Update visual
-            if self._checkmark then
-                self._checkmark.Visible = val
-            end
+            if self._checkmark then self._checkmark.Visible = val end
             if self._box then
                 Tween(self._box, {BackgroundColor3 = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff}, 0.15):Play()
             end
-            -- Fire callbacks
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, val)
-            end
-            if callback then
-                task.spawn(callback, val)
-            end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
+            if callback then task.spawn(callback, val) end
         end
 
-        -- UI
         local container = Create("Frame", {
             Name = "Toggle_" .. flag,
             Size = UDim2.new(1, 0, 0, 22),
@@ -113,7 +95,7 @@ function Elements:Setup(Library)
             Name = "Checkmark",
             Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
-            Text = "✓",
+            Text = "\226\156\147",
             TextColor3 = Color3.new(1, 1, 1),
             FontFace = lib.FontBold,
             TextSize = 12,
@@ -138,7 +120,6 @@ function Elements:Setup(Library)
         toggleObj._checkmark = checkmark
         toggleObj._container = container
 
-        -- Click handler
         local btn = Create("TextButton", {
             Name = "ClickArea",
             Size = UDim2.new(1, 0, 1, 0),
@@ -151,16 +132,24 @@ function Elements:Setup(Library)
             toggleObj:SetValue(not toggleObj.Value)
         end)
 
-        -- Register
         getgenv().Toggles[flag] = toggleObj
         lib.Flags[flag] = toggleObj
 
-        -- Return toggle so :AddKeyPicker / :AddColorPicker can chain
+        function toggleObj:AddKeyPicker(kpFlag, kpOptions)
+            kpOptions = kpOptions or {}
+            kpOptions.SyncToggleState = flag
+            return Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, lib)
+        end
+
+        function toggleObj:AddColorPicker(cpFlag, cpOptions)
+            return Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, lib)
+        end
+
         return toggleObj
     end
 
     -- ============================================================
-    -- SLIDER
+    -- SLIDER (with click-to-type on the value)
     -- ============================================================
 
     function Groupbox.AddSlider(self, flag, options)
@@ -174,12 +163,12 @@ function Elements:Setup(Library)
         local rounding = options.Rounding or 0
         local suffix = options.Suffix or ""
         local text = options.Text or flag
+        local compact = options.Compact or false
+        local hideMax = options.HideMax or false
         local callback = options.Callback
 
         local function round(val)
-            if rounding == 0 then
-                return math.floor(val + 0.5)
-            end
+            if rounding == 0 then return math.floor(val + 0.5) end
             local mult = 10 ^ rounding
             return math.floor(val * mult + 0.5) / mult
         end
@@ -205,62 +194,67 @@ function Elements:Setup(Library)
             val = math.clamp(val, min, max)
             val = round(val)
             self.Value = val
-
-            -- Update visual
             local pct = (val - min) / (max - min)
-            if self._fill then
-                Tween(self._fill, {Size = UDim2.new(pct, 0, 1, 0)}, 0.1):Play()
-            end
+            if self._fill then Tween(self._fill, {Size = UDim2.new(pct, 0, 1, 0)}, 0.1):Play() end
             if self._valueLabel then
-                self._valueLabel.Text = tostring(val) .. suffix
+                if compact or hideMax then
+                    self._valueLabel.Text = tostring(val) .. suffix
+                else
+                    self._valueLabel.Text = tostring(val) .. " / " .. tostring(max) .. suffix
+                end
             end
-
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, val)
-            end
-            if callback then
-                task.spawn(callback, val)
-            end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
+            if callback then task.spawn(callback, val) end
         end
 
-        -- UI
+        local containerHeight = compact and 22 or 36
         local container = Create("Frame", {
             Name = "Slider_" .. flag,
-            Size = UDim2.new(1, 0, 0, 36),
+            Size = UDim2.new(1, 0, 0, containerHeight),
             BackgroundTransparency = 1,
             LayoutOrder = order,
             Parent = self._container,
         })
 
-        Create("TextLabel", {
-            Name = "Label",
-            Size = UDim2.new(0.6, 0, 0, 16),
-            BackgroundTransparency = 1,
-            Text = text,
-            TextColor3 = lib.Theme.FontPrimary,
-            FontFace = lib.FontRegular,
-            TextSize = 13,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = container,
-        })
+        if not compact then
+            Create("TextLabel", {
+                Name = "Label",
+                Size = UDim2.new(0.6, 0, 0, 16),
+                BackgroundTransparency = 1,
+                Text = text,
+                TextColor3 = lib.Theme.FontPrimary,
+                FontFace = lib.FontRegular,
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = container,
+            })
+        end
 
-        local valueLabel = Create("TextLabel", {
+        local valText
+        if compact or hideMax then
+            valText = tostring(default) .. suffix
+        else
+            valText = tostring(default) .. " / " .. tostring(max) .. suffix
+        end
+
+        local valueLabel = Create("TextButton", {
             Name = "Value",
-            Size = UDim2.new(0.4, 0, 0, 16),
-            Position = UDim2.new(0.6, 0, 0, 0),
+            Size = UDim2.new(compact and 1 or 0.4, 0, 0, 16),
+            Position = UDim2.new(compact and 0 or 0.6, 0, 0, 0),
             BackgroundTransparency = 1,
-            Text = tostring(default) .. suffix,
+            Text = valText,
             TextColor3 = lib.Theme.FontSecondary,
             FontFace = lib.FontRegular,
             TextSize = 12,
-            TextXAlignment = Enum.TextXAlignment.Right,
+            TextXAlignment = compact and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
             Parent = container,
         })
 
+        local sliderY = compact and 0 or 20
         local sliderBg = Create("Frame", {
             Name = "SliderBg",
             Size = UDim2.new(1, 0, 0, 14),
-            Position = UDim2.new(0, 0, 0, 20),
+            Position = UDim2.new(0, 0, 0, sliderY),
             BackgroundColor3 = lib.Theme.ElementBg,
             BorderSizePixel = 0,
             Parent = container,
@@ -283,9 +277,33 @@ function Elements:Setup(Library)
         sliderObj._fill = fill
         sliderObj._valueLabel = valueLabel
 
+        -- Click on value to type a number
+        valueLabel.MouseButton1Click:Connect(function()
+            local inputBox = Create("TextBox", {
+                Size = valueLabel.Size,
+                Position = valueLabel.Position,
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                Text = tostring(sliderObj.Value),
+                TextColor3 = lib.Theme.FontPrimary,
+                FontFace = lib.FontRegular,
+                TextSize = 12,
+                ClearTextOnFocus = true,
+                Parent = container,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+                Create("UIStroke", { Color = lib.Theme.Accent, Thickness = 1 }),
+            })
+            inputBox:CaptureFocus()
+            inputBox.FocusLost:Connect(function()
+                local num = tonumber(inputBox.Text)
+                if num then sliderObj:SetValue(num) end
+                inputBox:Destroy()
+            end)
+        end)
+
         -- Drag logic
         local dragging = false
-
         local inputBtn = Create("TextButton", {
             Name = "InputArea",
             Size = UDim2.new(1, 0, 1, 0),
@@ -298,8 +316,7 @@ function Elements:Setup(Library)
             local absPos = sliderBg.AbsolutePosition.X
             local absSize = sliderBg.AbsoluteSize.X
             local relX = math.clamp((inputX - absPos) / absSize, 0, 1)
-            local val = min + (max - min) * relX
-            sliderObj:SetValue(val)
+            sliderObj:SetValue(min + (max - min) * relX)
         end
 
         inputBtn.InputBegan:Connect(function(input)
@@ -308,13 +325,11 @@ function Elements:Setup(Library)
                 updateFromInput(input.Position.X)
             end
         end)
-
         inputBtn.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
             end
         end)
-
         local moveConn = UserInputService.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 updateFromInput(input.Position.X)
@@ -322,88 +337,106 @@ function Elements:Setup(Library)
         end)
         table.insert(lib.Connections, moveConn)
 
-        -- Register
         getgenv().Options[flag] = sliderObj
         lib.Flags[flag] = sliderObj
-
         return sliderObj
     end
 
     -- ============================================================
-    -- BUTTON
+    -- BUTTON (table API, sub-buttons, double-click confirm)
     -- ============================================================
 
-    function Groupbox.AddButton(self, text, callback, options)
-        options = options or {}
+    function Groupbox.AddButton(self, info)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        local doubleConfirm = options.DoubleConfirm or false
+        local text = info.Text or "Button"
+        local func = info.Func
+        local doubleClick = info.DoubleClick or false
 
         local container = Create("Frame", {
             Name = "Button_" .. text,
-            Size = UDim2.new(1, 0, 0, 26),
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             LayoutOrder = order,
             Parent = self._container,
-        })
-
-        local btn = Create("TextButton", {
-            Name = "Btn",
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundColor3 = lib.Theme.ElementBg,
-            BorderSizePixel = 0,
-            Text = text,
-            TextColor3 = lib.Theme.FontPrimary,
-            FontFace = lib.FontSemiBold,
-            TextSize = 13,
-            Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+            Create("UIListLayout", {
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 0),
+            }),
         })
 
-        local confirming = false
+        local function makeBtn(btnText, btnFunc, isDouble, layoutOrder)
+            local btn = Create("TextButton", {
+                Name = "Btn",
+                Size = UDim2.new(1, 0, 0, 26),
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                Text = btnText,
+                TextColor3 = lib.Theme.FontPrimary,
+                FontFace = lib.FontSemiBold,
+                TextSize = 13,
+                LayoutOrder = layoutOrder,
+                Parent = container,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+            })
 
-        btn.MouseButton1Click:Connect(function()
-            if doubleConfirm and not confirming then
-                confirming = true
-                btn.Text = "Click again to confirm"
-                btn.TextColor3 = Color3.fromRGB(255, 200, 50)
-                task.delay(3, function()
-                    if confirming then
-                        confirming = false
-                        btn.Text = text
-                        btn.TextColor3 = lib.Theme.FontPrimary
-                    end
-                end)
-                return
-            end
-            confirming = false
-            btn.Text = text
-            btn.TextColor3 = lib.Theme.FontPrimary
-            if callback then
-                task.spawn(callback)
-            end
-        end)
+            local confirming = false
+            btn.MouseButton1Click:Connect(function()
+                if isDouble and not confirming then
+                    confirming = true
+                    btn.Text = "Are you sure?"
+                    btn.TextColor3 = Color3.fromRGB(255, 200, 50)
+                    task.delay(3, function()
+                        if confirming then
+                            confirming = false
+                            btn.Text = btnText
+                            btn.TextColor3 = lib.Theme.FontPrimary
+                        end
+                    end)
+                    return
+                end
+                confirming = false
+                btn.Text = btnText
+                btn.TextColor3 = lib.Theme.FontPrimary
+                if btnFunc then task.spawn(btnFunc) end
+            end)
 
-        -- Hover effect
-        btn.MouseEnter:Connect(function()
-            Tween(btn, {BackgroundColor3 = Color3.fromRGB(
-                math.min(255, lib.Theme.ElementBg.R * 255 + 12) / 255,
-                math.min(255, lib.Theme.ElementBg.G * 255 + 12) / 255,
-                math.min(255, lib.Theme.ElementBg.B * 255 + 12) / 255
-            )}, 0.1):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            Tween(btn, {BackgroundColor3 = lib.Theme.ElementBg}, 0.1):Play()
-        end)
+            btn.MouseEnter:Connect(function()
+                Tween(btn, {BackgroundColor3 = Color3.fromRGB(
+                    math.min(255, lib.Theme.ElementBg.R * 255 + 12) / 255,
+                    math.min(255, lib.Theme.ElementBg.G * 255 + 12) / 255,
+                    math.min(255, lib.Theme.ElementBg.B * 255 + 12) / 255
+                )}, 0.1):Play()
+            end)
+            btn.MouseLeave:Connect(function()
+                Tween(btn, {BackgroundColor3 = lib.Theme.ElementBg}, 0.1):Play()
+            end)
 
-        return container
+            return btn
+        end
+
+        makeBtn(text, func, doubleClick, 0)
+
+        local buttonObj = {}
+        buttonObj._container = container
+        buttonObj._btnCount = 1
+
+        function buttonObj:AddButton(subInfo)
+            self._btnCount = self._btnCount + 1
+            makeBtn(subInfo.Text or "Sub Button", subInfo.Func, subInfo.DoubleClick or false, self._btnCount)
+            return self
+        end
+
+        return buttonObj
     end
 
     -- ============================================================
-    -- DROPDOWN
+    -- DROPDOWN (close others, render in popupHolder)
     -- ============================================================
 
     function Groupbox.AddDropdown(self, flag, options)
@@ -417,7 +450,15 @@ function Elements:Setup(Library)
         local callback = options.Callback
         local default = options.Default
 
-        -- Resolve default
+        if options.SpecialType == "Player" then
+            values = {}
+            for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+                if p ~= game:GetService("Players").LocalPlayer then
+                    table.insert(values, p.Name)
+                end
+            end
+        end
+
         local currentValue
         if multi then
             currentValue = {}
@@ -452,9 +493,7 @@ function Elements:Setup(Library)
             if multi then
                 local selected = {}
                 for _, v in ipairs(values) do
-                    if dropObj.Value[v] then
-                        table.insert(selected, v)
-                    end
+                    if dropObj.Value[v] then table.insert(selected, v) end
                 end
                 if #selected == 0 then return "None" end
                 return table.concat(selected, ", ")
@@ -464,34 +503,27 @@ function Elements:Setup(Library)
         end
 
         function dropObj:SetValue(val)
-            self.Value = val
-            if self._displayLabel then
-                self._displayLabel.Text = getDisplayText()
+            if multi and type(val) == "table" then
+                self.Value = val
+            elseif not multi then
+                self.Value = val
             end
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, val)
-            end
-            if callback then
-                task.spawn(callback, val)
-            end
+            if self._displayLabel then self._displayLabel.Text = getDisplayText() end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
+            if callback then task.spawn(callback, self.Value) end
         end
 
         function dropObj:SetValues(newValues)
             values = newValues
             self.Values = newValues
-            -- Rebuild dropdown items
-            if self._rebuildItems then
-                self:_rebuildItems()
-            end
+            if self._rebuildItems then self:_rebuildItems() end
         end
 
-        -- UI
         local container = Create("Frame", {
             Name = "Dropdown_" .. flag,
             Size = UDim2.new(1, 0, 0, 42),
             BackgroundTransparency = 1,
             LayoutOrder = order,
-            ClipsDescendants = false,
             Parent = self._container,
         })
 
@@ -539,7 +571,7 @@ function Elements:Setup(Library)
             Size = UDim2.new(0, 16, 1, 0),
             Position = UDim2.new(1, -20, 0, 0),
             BackgroundTransparency = 1,
-            Text = "▼",
+            Text = "\226\150\188",
             TextColor3 = lib.Theme.FontSecondary,
             FontFace = lib.FontRegular,
             TextSize = 10,
@@ -548,44 +580,50 @@ function Elements:Setup(Library)
 
         dropObj._displayLabel = displayLabel
 
-        -- Dropdown list (rendered above with high ZIndex)
         local open = false
         local maxVisible = 6
         local itemHeight = 22
+        local dropList = nil
 
-        local dropList = Create("ScrollingFrame", {
-            Name = "DropList",
-            Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.new(0, 0, 0, 42),
-            BackgroundColor3 = lib.Theme.ElementBg,
-            BorderSizePixel = 0,
-            Visible = false,
-            ZIndex = 50,
-            ScrollBarThickness = 3,
-            ScrollBarImageColor3 = lib.Theme.Accent,
-            ScrollingDirection = Enum.ScrollingDirection.Y,
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            CanvasSize = UDim2.new(0, 0, 0, 0),
-            ClipsDescendants = true,
-            Parent = container,
-        }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
-            Create("UIListLayout", {
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, 0),
-            }),
-        })
+        local function closeDrop()
+            open = false
+            arrow.Text = "\226\150\188"
+            if dropList then dropList:Destroy() dropList = nil end
+        end
+
+        local popupObj = { Close = closeDrop }
 
         local function buildItems()
-            -- Clear existing items
-            for _, child in ipairs(dropList:GetChildren()) do
-                if child:IsA("TextButton") then child:Destroy() end
-            end
+            if dropList then dropList:Destroy() dropList = nil end
+
+            local absPos = dropBtn.AbsolutePosition
+            local absSize = dropBtn.AbsoluteSize
+            local listHeight = math.min(#values, maxVisible) * itemHeight
+
+            dropList = Create("ScrollingFrame", {
+                Name = "DropList_" .. flag,
+                Size = UDim2.new(0, absSize.X, 0, listHeight),
+                Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2),
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                ZIndex = 100,
+                ScrollBarThickness = 3,
+                ScrollBarImageColor3 = lib.Theme.Accent,
+                ScrollingDirection = Enum.ScrollingDirection.Y,
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                ClipsDescendants = true,
+                Parent = lib._popupHolder,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+                Create("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                }),
+            })
 
             for i, val in ipairs(values) do
                 local isSelected = multi and dropObj.Value[val] or (dropObj.Value == val)
-
                 local item = Create("TextButton", {
                     Name = "Item_" .. val,
                     Size = UDim2.new(1, 0, 0, itemHeight),
@@ -597,7 +635,7 @@ function Elements:Setup(Library)
                     FontFace = lib.FontRegular,
                     TextSize = 12,
                     LayoutOrder = i,
-                    ZIndex = 51,
+                    ZIndex = 101,
                     Parent = dropList,
                 })
 
@@ -605,18 +643,14 @@ function Elements:Setup(Library)
                     if multi then
                         dropObj.Value[val] = not dropObj.Value[val]
                         dropObj:SetValue(dropObj.Value)
-                        -- Update item visual
                         local sel = dropObj.Value[val]
                         item.BackgroundTransparency = sel and 0.7 or 0
                         item.BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg
                         item.TextColor3 = sel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
                     else
                         dropObj:SetValue(val)
-                        -- Close dropdown
-                        open = false
-                        Tween(dropList, {Size = UDim2.new(1, 0, 0, 0)}, 0.15):Play()
-                        task.delay(0.15, function() dropList.Visible = false end)
-                        arrow.Text = "▼"
+                        closeDrop()
+                        lib._openPopup = nil
                     end
                 end)
 
@@ -627,34 +661,31 @@ function Elements:Setup(Library)
                 end)
                 item.MouseLeave:Connect(function()
                     local sel = multi and dropObj.Value[val] or (dropObj.Value == val)
-                    Tween(item, {BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg}, 0.1):Play()
+                    item.BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg
                     item.BackgroundTransparency = sel and 0.7 or 0
                 end)
             end
         end
 
-        dropObj._rebuildItems = buildItems
-        buildItems()
+        dropObj._rebuildItems = function()
+            if open then buildItems() end
+        end
 
-        -- Toggle dropdown
         dropBtn.MouseButton1Click:Connect(function()
-            open = not open
             if open then
-                dropList.Visible = true
-                local listHeight = math.min(#values, maxVisible) * itemHeight
-                Tween(dropList, {Size = UDim2.new(1, 0, 0, listHeight)}, 0.15):Play()
-                arrow.Text = "▲"
+                closeDrop()
+                lib._openPopup = nil
             else
-                Tween(dropList, {Size = UDim2.new(1, 0, 0, 0)}, 0.15):Play()
-                task.delay(0.15, function() dropList.Visible = false end)
-                arrow.Text = "▼"
+                lib:ClosePopups()
+                open = true
+                arrow.Text = "\226\150\178"
+                buildItems()
+                lib._openPopup = popupObj
             end
         end)
 
-        -- Register
         getgenv().Options[flag] = dropObj
         lib.Flags[flag] = dropObj
-
         return dropObj
     end
 
@@ -688,18 +719,11 @@ function Elements:Setup(Library)
 
         function inputObj:SetValue(val)
             self.Value = val
-            if self._textBox then
-                self._textBox.Text = tostring(val)
-            end
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, val)
-            end
-            if callback then
-                task.spawn(callback, val)
-            end
+            if self._textBox then self._textBox.Text = tostring(val) end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
+            if callback then task.spawn(callback, val) end
         end
 
-        -- UI
         local container = Create("Frame", {
             Name = "Input_" .. flag,
             Size = UDim2.new(1, 0, 0, 42),
@@ -737,10 +761,7 @@ function Elements:Setup(Library)
         }, {
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
-            Create("UIPadding", {
-                PaddingLeft = UDim.new(0, 6),
-                PaddingRight = UDim.new(0, 6),
-            }),
+            Create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
         })
 
         inputObj._textBox = textBox
@@ -748,70 +769,63 @@ function Elements:Setup(Library)
         local function processInput(txt)
             if numeric then
                 local num = tonumber(txt)
-                if num then
-                    inputObj:SetValue(num)
-                else
-                    textBox.Text = tostring(inputObj.Value)
-                end
+                if num then inputObj:SetValue(num) else textBox.Text = tostring(inputObj.Value) end
             else
                 inputObj:SetValue(txt)
             end
         end
 
         if finished then
-            textBox.FocusLost:Connect(function(enterPressed)
-                processInput(textBox.Text)
-            end)
+            textBox.FocusLost:Connect(function() processInput(textBox.Text) end)
         else
-            textBox:GetPropertyChangedSignal("Text"):Connect(function()
-                processInput(textBox.Text)
-            end)
+            textBox:GetPropertyChangedSignal("Text"):Connect(function() processInput(textBox.Text) end)
         end
 
-        -- Register
         getgenv().Options[flag] = inputObj
         lib.Flags[flag] = inputObj
-
         return inputObj
     end
 
     -- ============================================================
-    -- LABEL
+    -- LABEL (supports wrapping)
     -- ============================================================
 
-    function Groupbox.AddLabel(self, text)
+    function Groupbox.AddLabel(self, text, doesWrap)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        local labelObj = {}
-
-        local label = Create("TextLabel", {
+        local labelInst = Create("TextLabel", {
             Name = "Label",
-            Size = UDim2.new(1, 0, 0, 18),
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = lib.Theme.FontSecondary,
             FontFace = lib.FontRegular,
             TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = doesWrap or false,
             LayoutOrder = order,
             Parent = self._container,
         })
 
-        labelObj._label = label
-        labelObj._container = label
-
-        function labelObj:SetText(newText)
-            label.Text = newText
+        if not doesWrap then
+            labelInst.Size = UDim2.new(1, 0, 0, 18)
+            labelInst.AutomaticSize = Enum.AutomaticSize.None
         end
 
-        -- Allow chaining :AddColorPicker / :AddKeyPicker onto a label
-        function labelObj:AddColorPicker(flag, options)
-            return Groupbox._addColorPickerToContainer(self._container, flag, options, lib, order)
+        local labelObj = {}
+        labelObj._label = labelInst
+        labelObj._container = labelInst
+
+        function labelObj:SetText(newText) labelInst.Text = newText end
+
+        function labelObj:AddColorPicker(cpFlag, cpOptions)
+            return Groupbox._addColorPickerToContainer(labelInst, cpFlag, cpOptions, lib)
         end
 
-        function labelObj:AddKeyPicker(flag, options)
-            return Groupbox._addKeyPickerToContainer(self._container, flag, options, lib, order)
+        function labelObj:AddKeyPicker(kpFlag, kpOptions)
+            return Groupbox._addKeyPickerToContainer(labelInst, kpFlag, kpOptions, lib)
         end
 
         return labelObj
@@ -842,25 +856,29 @@ function Elements:Setup(Library)
     end
 
     -- ============================================================
-    -- KEYPICKER (Keybind)
+    -- KEYPICKER (right-click context menu for mode selection)
     -- ============================================================
 
-    -- Standalone method (can be called on toggle or label)
-    function Groupbox._addKeyPickerToContainer(container, flag, options, lib, order)
+    function Groupbox._addKeyPickerToContainer(container, flag, options, lib)
         options = options or {}
         local default = options.Default or "None"
         local text = options.Text or flag
         local noUI = options.NoUI or false
         local mode = options.Mode or "Toggle"
         local syncToggle = options.SyncToggleState
+        local cbCallback = options.Callback
+        local changedCb = options.ChangedCallback
 
         local kpObj = {
             Value = default,
             Flag = flag,
             Type = "KeyPicker",
             Mode = mode,
+            Text = text,
+            NoUI = noUI,
             _isActive = false,
             _callbacks = {},
+            _clickCallbacks = {},
         }
 
         function kpObj:OnChanged(fn)
@@ -868,43 +886,40 @@ function Elements:Setup(Library)
             return self
         end
 
+        function kpObj:OnClick(fn)
+            table.insert(self._clickCallbacks, fn)
+            return self
+        end
+
         function kpObj:GetState()
-            if self.Mode == "Always" then
-                return true
-            elseif self.Mode == "Hold" then
-                return self._isActive
-            else -- Toggle
-                return self._isActive
-            end
+            if self.Mode == "Always" then return true end
+            return self._isActive
         end
 
-        function kpObj:SetValue(key, newMode)
-            if key then self.Value = key end
-            if newMode then self.Mode = newMode end
-            if self._keyLabel then
-                self._keyLabel.Text = "[" .. self.Value .. "]"
+        function kpObj:SetValue(data)
+            if type(data) == "table" then
+                if data[1] then self.Value = data[1] end
+                if data[2] then self.Mode = data[2] end
+            elseif type(data) == "string" then
+                self.Value = data
             end
-            if self._modeLabel then
-                self._modeLabel.Text = self.Mode
-            end
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, self.Value)
-            end
+            if self._keyLabel then self._keyLabel.Text = "[" .. self.Value .. "]" end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
+            if changedCb then task.spawn(changedCb, self.Value) end
         end
 
-        -- UI: small keybind button on the right side of the container
         local kpFrame = Create("Frame", {
             Name = "KeyPicker_" .. flag,
-            Size = UDim2.new(0, 80, 0, 22),
-            Position = UDim2.new(1, -80, 0, 0),
+            Size = UDim2.new(0, 55, 0, 22),
+            Position = UDim2.new(1, -55, 0, 0),
             BackgroundTransparency = 1,
             Parent = container,
         })
 
         local keyBtn = Create("TextButton", {
             Name = "KeyBtn",
-            Size = UDim2.new(0, 48, 0, 18),
-            Position = UDim2.new(1, -48, 0, 2),
+            Size = UDim2.new(1, 0, 0, 18),
+            Position = UDim2.new(0, 0, 0, 2),
             BackgroundColor3 = lib.Theme.ElementBg,
             BorderSizePixel = 0,
             Text = "[" .. default .. "]",
@@ -919,7 +934,6 @@ function Elements:Setup(Library)
 
         kpObj._keyLabel = keyBtn
 
-        -- Mode selector (right-click to cycle)
         local listening = false
 
         keyBtn.MouseButton1Click:Connect(function()
@@ -928,65 +942,96 @@ function Elements:Setup(Library)
             keyBtn.TextColor3 = lib.Theme.Accent
         end)
 
+        -- Right-click: show mode context menu
         keyBtn.MouseButton2Click:Connect(function()
-            -- Cycle mode
+            lib:ClosePopups()
+
+            local absPos = keyBtn.AbsolutePosition
+            local absSize = keyBtn.AbsoluteSize
+
+            local modeMenu = Create("Frame", {
+                Name = "ModeMenu",
+                Size = UDim2.new(0, 80, 0, 66),
+                Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2),
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                ZIndex = 100,
+                Parent = lib._popupHolder,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+                Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }),
+            })
+
+            local function closeMenu()
+                modeMenu:Destroy()
+            end
+
             local modes = {"Hold", "Toggle", "Always"}
-            local idx = table.find(modes, kpObj.Mode) or 1
-            idx = idx % #modes + 1
-            kpObj.Mode = modes[idx]
-            kpObj:SetValue(nil, kpObj.Mode)
+            for i, m in ipairs(modes) do
+                local mBtn = Create("TextButton", {
+                    Size = UDim2.new(1, 0, 0, 22),
+                    BackgroundColor3 = kpObj.Mode == m and lib.Theme.Accent or lib.Theme.ElementBg,
+                    BackgroundTransparency = kpObj.Mode == m and 0.7 or 0,
+                    BorderSizePixel = 0,
+                    Text = m,
+                    TextColor3 = lib.Theme.FontPrimary,
+                    FontFace = lib.FontRegular,
+                    TextSize = 12,
+                    LayoutOrder = i,
+                    ZIndex = 101,
+                    Parent = modeMenu,
+                })
+                mBtn.MouseButton1Click:Connect(function()
+                    kpObj.Mode = m
+                    kpObj._isActive = false
+                    closeMenu()
+                    lib._openPopup = nil
+                end)
+            end
+
+            lib._openPopup = { Close = closeMenu }
         end)
 
+        -- Key listening
         local inputConn = UserInputService.InputBegan:Connect(function(input, processed)
             if not listening then return end
             if processed then return end
-
             local keyName
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-                keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
-                keyName = "MB3"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
             end
-
             if keyName then
-                if keyName == "Escape" or keyName == "Backspace" then
-                    keyName = "None"
-                end
+                if keyName == "Escape" or keyName == "Backspace" then keyName = "None" end
                 listening = false
-                kpObj:SetValue(keyName)
+                kpObj:SetValue({keyName, kpObj.Mode})
                 keyBtn.TextColor3 = lib.Theme.FontSecondary
             end
         end)
         table.insert(lib.Connections, inputConn)
 
-        -- Handle Hold/Toggle/Always state
+        -- Hold/Toggle/Always state
         local holdConn = UserInputService.InputBegan:Connect(function(input, processed)
-            if processed then return end
-            if listening then return end
+            if processed or listening then return end
             if kpObj.Value == "None" then return end
-
             local keyName
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-                keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
-                keyName = "MB3"
+            if input.UserInputType == Enum.UserInputType.Keyboard then keyName = input.KeyCode.Name
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
             end
-
             if keyName == kpObj.Value then
                 if kpObj.Mode == "Toggle" then
                     kpObj._isActive = not kpObj._isActive
+                    for _, fn in ipairs(kpObj._clickCallbacks) do task.spawn(fn, kpObj._isActive) end
+                    if cbCallback then task.spawn(cbCallback, kpObj._isActive) end
                 elseif kpObj.Mode == "Hold" then
                     kpObj._isActive = true
+                    if cbCallback then task.spawn(cbCallback, true) end
                 end
-                -- Sync with toggle if configured
                 if syncToggle and getgenv().Toggles[syncToggle] then
                     getgenv().Toggles[syncToggle]:SetValue(kpObj:GetState())
                 end
@@ -996,20 +1041,15 @@ function Elements:Setup(Library)
 
         local holdEndConn = UserInputService.InputEnded:Connect(function(input)
             if kpObj.Value == "None" then return end
-
             local keyName
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-                keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
-                keyName = "MB3"
+            if input.UserInputType == Enum.UserInputType.Keyboard then keyName = input.KeyCode.Name
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
+            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
             end
-
             if keyName == kpObj.Value and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
+                if cbCallback then task.spawn(cbCallback, false) end
                 if syncToggle and getgenv().Toggles[syncToggle] then
                     getgenv().Toggles[syncToggle]:SetValue(false)
                 end
@@ -1017,10 +1057,8 @@ function Elements:Setup(Library)
         end)
         table.insert(lib.Connections, holdEndConn)
 
-        -- Register
         getgenv().Options[flag] = kpObj
         lib.Flags[flag] = kpObj
-
         return kpObj
     end
 
@@ -1028,7 +1066,6 @@ function Elements:Setup(Library)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        -- Create a container row for it
         local container = Create("Frame", {
             Name = "KeyPicker_" .. flag,
             Size = UDim2.new(1, 0, 0, 22),
@@ -1039,7 +1076,7 @@ function Elements:Setup(Library)
 
         Create("TextLabel", {
             Name = "Label",
-            Size = UDim2.new(1, -80, 1, 0),
+            Size = UDim2.new(1, -60, 1, 0),
             BackgroundTransparency = 1,
             Text = options and options.Text or flag,
             TextColor3 = lib.Theme.FontPrimary,
@@ -1049,36 +1086,19 @@ function Elements:Setup(Library)
             Parent = container,
         })
 
-        return Groupbox._addKeyPickerToContainer(container, flag, options, lib, order)
-    end
-
-    -- Allow chaining AddKeyPicker on toggles
-    local origToggle = Groupbox.AddToggle
-    Groupbox.AddToggle = function(self, flag, options)
-        local toggleObj = origToggle(self, flag, options)
-
-        function toggleObj:AddKeyPicker(kpFlag, kpOptions)
-            kpOptions = kpOptions or {}
-            kpOptions.SyncToggleState = flag
-            return Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, Elements.Library, 0)
-        end
-
-        function toggleObj:AddColorPicker(cpFlag, cpOptions)
-            return Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, Elements.Library, 0)
-        end
-
-        return toggleObj
+        return Groupbox._addKeyPickerToContainer(container, flag, options, lib)
     end
 
     -- ============================================================
-    -- COLORPICKER
+    -- COLORPICKER (render in popupHolder, close others)
     -- ============================================================
 
-    function Groupbox._addColorPickerToContainer(container, flag, options, lib, order)
+    function Groupbox._addColorPickerToContainer(container, flag, options, lib)
         options = options or {}
         local default = options.Default or Color3.fromRGB(255, 255, 255)
         local callback = options.Callback
-        local transparency = options.Transparency or nil
+        local title = options.Title or flag
+        local transparency = options.Transparency
 
         local cpObj = {
             Value = default,
@@ -1095,19 +1115,16 @@ function Elements:Setup(Library)
 
         function cpObj:SetValue(color, trans)
             if color then self.Value = color end
-            if trans then self.Transparency = trans end
-            if self._preview then
-                self._preview.BackgroundColor3 = self.Value
-            end
-            for _, fn in ipairs(self._callbacks) do
-                task.spawn(fn, self.Value)
-            end
-            if callback then
-                task.spawn(callback, self.Value)
-            end
+            if trans ~= nil then self.Transparency = trans end
+            if self._preview then self._preview.BackgroundColor3 = self.Value end
+            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
+            if callback then task.spawn(callback, self.Value) end
         end
 
-        -- Small color preview square on the right side
+        function cpObj:SetValueRGB(color)
+            self:SetValue(color)
+        end
+
         local preview = Create("Frame", {
             Name = "ColorPreview_" .. flag,
             Size = UDim2.new(0, 18, 0, 18),
@@ -1122,62 +1139,74 @@ function Elements:Setup(Library)
 
         cpObj._preview = preview
 
-        -- Color picker popup on click
-        local pickerOpen = false
         local pickerFrame = nil
 
+        local function closePicker()
+            if pickerFrame then pickerFrame:Destroy() pickerFrame = nil end
+        end
+
+        local popupObj = { Close = closePicker }
+
         local previewBtn = Create("TextButton", {
-            Name = "ClickArea",
             Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
             Text = "",
             Parent = preview,
         })
 
-        local function closePicker()
+        previewBtn.MouseButton1Click:Connect(function()
             if pickerFrame then
-                pickerFrame:Destroy()
-                pickerFrame = nil
+                closePicker()
+                lib._openPopup = nil
+                return
             end
-            pickerOpen = false
-        end
 
-        local function openPicker()
-            if pickerOpen then closePicker() return end
-            pickerOpen = true
+            lib:ClosePopups()
 
-            -- HSV picker popup
             local h, s, v = Color3.toHSV(cpObj.Value)
+            local absPos = preview.AbsolutePosition
 
             pickerFrame = Create("Frame", {
-                Name = "PickerPopup",
-                Size = UDim2.new(0, 180, 0, 160),
-                Position = UDim2.new(1, 4, 0, 0),
+                Name = "PickerPopup_" .. flag,
+                Size = UDim2.new(0, 180, 0, 170),
+                Position = UDim2.new(0, absPos.X - 160, 0, absPos.Y + 24),
                 BackgroundColor3 = lib.Theme.Background,
                 BorderSizePixel = 0,
                 ZIndex = 100,
-                Parent = container,
+                Parent = lib._popupHolder,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
                 Create("UIStroke", { Color = lib.Theme.Border, Thickness = 1 }),
             })
 
-            -- Saturation/Value field
+            Create("TextLabel", {
+                Name = "Title",
+                Size = UDim2.new(1, -8, 0, 18),
+                Position = UDim2.new(0, 4, 0, 2),
+                BackgroundTransparency = 1,
+                Text = title,
+                TextColor3 = lib.Theme.FontPrimary,
+                FontFace = lib.FontBold,
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 101,
+                Parent = pickerFrame,
+            })
+
             local svField = Create("ImageLabel", {
                 Name = "SVField",
-                Size = UDim2.new(0, 140, 0, 100),
-                Position = UDim2.new(0, 8, 0, 8),
+                Size = UDim2.new(0, 132, 0, 90),
+                Position = UDim2.new(0, 8, 0, 22),
                 BackgroundColor3 = Color3.fromHSV(h, 1, 1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
                 Parent = pickerFrame,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-                -- White gradient left to right
                 Create("UIGradient", {
                     Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-                        ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
+                        ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
+                        ColorSequenceKeypoint.new(1, Color3.new(1,1,1)),
                     }),
                     Transparency = NumberSequence.new({
                         NumberSequenceKeypoint.new(0, 0),
@@ -1186,7 +1215,6 @@ function Elements:Setup(Library)
                 }),
             })
 
-            -- Black overlay bottom to top
             Create("Frame", {
                 Name = "BlackOverlay",
                 Size = UDim2.new(1, 0, 1, 0),
@@ -1205,26 +1233,23 @@ function Elements:Setup(Library)
                 }),
             })
 
-            -- SV cursor
             local svCursor = Create("Frame", {
-                Name = "Cursor",
                 Size = UDim2.new(0, 8, 0, 8),
-                Position = UDim2.new(s, -4, 1 - v, -4),
-                BackgroundColor3 = Color3.new(1, 1, 1),
+                Position = UDim2.new(s, -4, 1-v, -4),
+                BackgroundColor3 = Color3.new(1,1,1),
                 BorderSizePixel = 0,
                 ZIndex = 103,
                 Parent = svField,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
-                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
+                Create("UIStroke", { Color = Color3.new(0,0,0), Thickness = 1 }),
             })
 
-            -- Hue bar
             local hueBar = Create("Frame", {
                 Name = "HueBar",
-                Size = UDim2.new(0, 16, 0, 100),
-                Position = UDim2.new(0, 156, 0, 8),
-                BackgroundColor3 = Color3.new(1, 1, 1),
+                Size = UDim2.new(0, 16, 0, 90),
+                Position = UDim2.new(0, 148, 0, 22),
+                BackgroundColor3 = Color3.new(1,1,1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
                 Parent = pickerFrame,
@@ -1233,36 +1258,32 @@ function Elements:Setup(Library)
                 Create("UIGradient", {
                     Rotation = 90,
                     Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)),
-                        ColorSequenceKeypoint.new(0.167, Color3.fromHSV(0.167, 1, 1)),
-                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333, 1, 1)),
-                        ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5, 1, 1)),
-                        ColorSequenceKeypoint.new(0.667, Color3.fromHSV(0.667, 1, 1)),
-                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833, 1, 1)),
-                        ColorSequenceKeypoint.new(1, Color3.fromHSV(1, 1, 1)),
+                        ColorSequenceKeypoint.new(0, Color3.fromHSV(0,1,1)),
+                        ColorSequenceKeypoint.new(0.167, Color3.fromHSV(0.167,1,1)),
+                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333,1,1)),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5,1,1)),
+                        ColorSequenceKeypoint.new(0.667, Color3.fromHSV(0.667,1,1)),
+                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833,1,1)),
+                        ColorSequenceKeypoint.new(1, Color3.fromHSV(1,1,1)),
                     }),
                 }),
             })
 
-            -- Hue cursor
             local hueCursor = Create("Frame", {
-                Name = "HueCursor",
                 Size = UDim2.new(1, 4, 0, 4),
                 Position = UDim2.new(0, -2, h, -2),
-                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundColor3 = Color3.new(1,1,1),
                 BorderSizePixel = 0,
                 ZIndex = 103,
                 Parent = hueBar,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
-                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
+                Create("UIStroke", { Color = Color3.new(0,0,0), Thickness = 1 }),
             })
 
-            -- Hex input
             local hexBox = Create("TextBox", {
-                Name = "HexBox",
                 Size = UDim2.new(1, -16, 0, 22),
-                Position = UDim2.new(0, 8, 0, 114),
+                Position = UDim2.new(0, 8, 0, 118),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
                 Text = "#" .. cpObj.Value:ToHex(),
@@ -1278,11 +1299,9 @@ function Elements:Setup(Library)
                 Create("UIPadding", { PaddingLeft = UDim.new(0, 4) }),
             })
 
-            -- Close button
             local closeBtn = Create("TextButton", {
-                Name = "CloseBtn",
                 Size = UDim2.new(1, -16, 0, 18),
-                Position = UDim2.new(0, 8, 0, 138),
+                Position = UDim2.new(0, 8, 0, 144),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
                 Text = "Close",
@@ -1294,84 +1313,59 @@ function Elements:Setup(Library)
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
             })
-            closeBtn.MouseButton1Click:Connect(closePicker)
+            closeBtn.MouseButton1Click:Connect(function()
+                closePicker()
+                lib._openPopup = nil
+            end)
 
             local function updateColor()
                 local newColor = Color3.fromHSV(h, s, v)
                 cpObj:SetValue(newColor)
                 svField.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-                svCursor.Position = UDim2.new(s, -4, 1 - v, -4)
+                svCursor.Position = UDim2.new(s, -4, 1-v, -4)
                 hueCursor.Position = UDim2.new(0, -2, h, -2)
                 hexBox.Text = "#" .. newColor:ToHex()
             end
 
-            -- SV field drag
-            local svDragging = false
-            local svBtn = Create("TextButton", {
-                Size = UDim2.new(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                Text = "",
-                ZIndex = 104,
-                Parent = svField,
-            })
+            local svDragging, hueDragging = false, false
 
+            local svBtn = Create("TextButton", {
+                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = svField,
+            })
             svBtn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    svDragging = true
-                end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end
             end)
             svBtn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    svDragging = false
-                end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end
             end)
 
-            -- Hue bar drag
-            local hueDragging = false
             local hueBtn = Create("TextButton", {
-                Size = UDim2.new(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                Text = "",
-                ZIndex = 104,
-                Parent = hueBar,
+                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = hueBar,
             })
-
             hueBtn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    hueDragging = true
-                end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true end
             end)
             hueBtn.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    hueDragging = false
-                end
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
             end)
 
             local pickerMoveConn = UserInputService.InputChanged:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-
                 if svDragging then
-                    local relX = math.clamp((input.Position.X - svField.AbsolutePosition.X) / svField.AbsoluteSize.X, 0, 1)
-                    local relY = math.clamp((input.Position.Y - svField.AbsolutePosition.Y) / svField.AbsoluteSize.Y, 0, 1)
-                    s = relX
-                    v = 1 - relY
+                    s = math.clamp((input.Position.X - svField.AbsolutePosition.X) / svField.AbsoluteSize.X, 0, 1)
+                    v = 1 - math.clamp((input.Position.Y - svField.AbsolutePosition.Y) / svField.AbsoluteSize.Y, 0, 1)
                     updateColor()
                 end
-
                 if hueDragging then
-                    local relY = math.clamp((input.Position.Y - hueBar.AbsolutePosition.Y) / hueBar.AbsoluteSize.Y, 0, 1)
-                    h = relY
+                    h = math.clamp((input.Position.Y - hueBar.AbsolutePosition.Y) / hueBar.AbsoluteSize.Y, 0, 1)
                     updateColor()
                 end
             end)
             table.insert(lib.Connections, pickerMoveConn)
 
-            -- Hex input
             hexBox.FocusLost:Connect(function()
                 local hexText = hexBox.Text:gsub("#", "")
-                local ok, color = pcall(function()
-                    return Color3.fromHex("#" .. hexText)
-                end)
+                local ok, color = pcall(function() return Color3.fromHex("#" .. hexText) end)
                 if ok and color then
                     h, s, v = Color3.toHSV(color)
                     updateColor()
@@ -1379,14 +1373,12 @@ function Elements:Setup(Library)
                     hexBox.Text = "#" .. cpObj.Value:ToHex()
                 end
             end)
-        end
 
-        previewBtn.MouseButton1Click:Connect(openPicker)
+            lib._openPopup = popupObj
+        end)
 
-        -- Register
         getgenv().Options[flag] = cpObj
         lib.Flags[flag] = cpObj
-
         return cpObj
     end
 
@@ -1414,20 +1406,18 @@ function Elements:Setup(Library)
             Parent = container,
         })
 
-        return Groupbox._addColorPickerToContainer(container, flag, options, lib, order)
+        return Groupbox._addColorPickerToContainer(container, flag, options, lib)
     end
 
     -- ============================================================
-    -- DEPENDENCY BOX
+    -- DEPENDENCY BOX (Linoria format: { ToggleObj, true/false })
     -- ============================================================
 
     function Groupbox.AddDependencyBox(self)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        local depBox = {
-            _dependencies = {},
-        }
+        local depBox = { _dependencies = {} }
 
         local container = Create("Frame", {
             Name = "DependencyBox",
@@ -1458,32 +1448,29 @@ function Elements:Setup(Library)
             local function check()
                 local visible = true
                 for _, dep in ipairs(deps) do
-                    local toggle = getgenv().Toggles[dep.Flag]
+                    local toggle = dep[1]
+                    local wantState = dep[2]
                     if toggle then
-                        if dep.Inverted then
-                            if toggle.Value then visible = false end
-                        else
+                        if wantState then
                             if not toggle.Value then visible = false end
+                        else
+                            if toggle.Value then visible = false end
                         end
                     end
                 end
                 container.Visible = visible
             end
 
-            -- Hook into each dependency toggle
             for _, dep in ipairs(deps) do
-                local toggle = getgenv().Toggles[dep.Flag]
-                if toggle then
-                    toggle:OnChanged(function()
-                        check()
-                    end)
+                local toggle = dep[1]
+                if toggle and toggle.OnChanged then
+                    toggle:OnChanged(function() check() end)
                 end
             end
 
             check()
         end
 
-        -- Give DependencyBox all the same AddXxx methods
         depBox.AddToggle = Groupbox.AddToggle
         depBox.AddSlider = Groupbox.AddSlider
         depBox.AddButton = Groupbox.AddButton
@@ -1493,30 +1480,12 @@ function Elements:Setup(Library)
         depBox.AddDivider = Groupbox.AddDivider
         depBox.AddKeyPicker = Groupbox.AddKeyPicker
         depBox.AddColorPicker = Groupbox.AddColorPicker
+        depBox.AddDependencyBox = Groupbox.AddDependencyBox
 
         return depBox
     end
 
-    -- ============================================================
-    -- INJECT METHODS
-    -- Apply all Groupbox methods to the actual Groupbox metatable
-    -- ============================================================
-
     Library._GroupboxMethods = Groupbox
-end
-
--- After Library:CreateWindow, we need to inject the methods
--- This function patches any Groupbox returned by Tab:AddLeftGroupbox / Tab:AddRightGroupbox
-function Elements:InjectGroupboxMethods(groupbox)
-    local lib = self.Library
-    local methods = lib._GroupboxMethods
-    if not methods then return end
-
-    for k, v in pairs(methods) do
-        if type(v) == "function" then
-            groupbox[k] = v
-        end
-    end
 end
 
 return Elements

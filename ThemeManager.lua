@@ -3,6 +3,8 @@
     ThemeManager.lua - Theme system with built-in themes + custom theme support
 ]]
 
+local HttpService = game:GetService("HttpService")
+
 local ThemeManager = {}
 ThemeManager.Library = nil
 ThemeManager.Folder = "JopLib"
@@ -117,12 +119,17 @@ function ThemeManager:SetTheme(name)
     end
     lib.AccentColor = theme.Accent
 
-    -- The UI won't live-update existing elements' colors automatically
-    -- (that requires storing references to every Instance property and tweening them)
-    -- For now, theme changes take full effect on next window creation
-    -- or we can walk the GUI tree and update known properties:
-
     self:_applyThemeToGui()
+
+    -- Update color picker previews
+    local opts = getgenv().Options or {}
+    for key, _ in pairs(theme) do
+        local cpFlag = "ThemeColor_" .. key
+        if opts[cpFlag] then
+            pcall(function() opts[cpFlag]:SetValue(theme[key]) end)
+        end
+    end
+
     return true
 end
 
@@ -133,7 +140,6 @@ function ThemeManager:_applyThemeToGui()
     local theme = lib.Theme
     local gui = lib.ScreenGui
 
-    -- Walk entire GUI tree and update colors by name conventions
     for _, desc in ipairs(gui:GetDescendants()) do
         local name = desc.Name
 
@@ -146,21 +152,17 @@ function ThemeManager:_applyThemeToGui()
                 desc.BackgroundColor3 = theme.Accent
             elseif name == "TabBarContainer" then
                 desc.BackgroundColor3 = theme.TabBackground
-            elseif name:find("Groupbox_") then
+            elseif name:find("Groupbox_") or name == "Tabbox" then
                 desc.BackgroundColor3 = theme.GroupboxBg
-            elseif name == "SliderBg" or name == "Box" then
-                -- handled individually
             elseif name == "Fill" then
                 desc.BackgroundColor3 = theme.SliderFill
-            elseif name == "Divider" then
-                -- skip
             end
         end
 
         if desc:IsA("UIStroke") then
             local parent = desc.Parent
             if parent then
-                if parent.Name == "MainFrame" or parent:IsA("Frame") and parent.Name:find("Groupbox_") then
+                if parent.Name == "MainFrame" or (parent:IsA("Frame") and (parent.Name:find("Groupbox_") or parent.Name == "Tabbox")) then
                     desc.Color = theme.Border
                 else
                     desc.Color = theme.ElementBorder
@@ -179,11 +181,15 @@ function ThemeManager:_applyThemeToGui()
         end
 
         if desc:IsA("TextButton") then
-            if name:find("Tab_") then
-                -- Tab buttons handled separately
-            elseif name == "Btn" then
+            if name == "Btn" then
                 desc.BackgroundColor3 = theme.ElementBg
                 desc.TextColor3 = theme.FontPrimary
+            end
+        end
+
+        if desc:IsA("ScrollingFrame") then
+            if name == "LeftColumn" or name == "RightColumn" then
+                desc.ScrollBarImageColor3 = theme.Accent
             end
         end
     end
@@ -198,27 +204,58 @@ function ThemeManager:ApplyToTab(tab)
     local themeNames = self:GetThemes()
 
     left:AddDropdown("ThemeSelector", {
-        Text = "Theme",
         Values = themeNames,
         Default = "Default",
-        Callback = function(val)
-            self:SetTheme(val)
-        end,
+        Text = "Theme",
     })
 
+    getgenv().Options.ThemeSelector:OnChanged(function()
+        self:SetTheme(getgenv().Options.ThemeSelector.Value)
+    end)
+
+    -- Color pickers for each theme key
+    local colorKeys = {
+        "Accent", "Background", "TitleBar", "GroupboxBg", "ElementBg",
+        "ElementBorder", "FontPrimary", "FontSecondary", "Border",
+    }
+
+    for _, key in ipairs(colorKeys) do
+        local cpFlag = "ThemeColor_" .. key
+        left:AddLabel(key):AddColorPicker(cpFlag, {
+            Default = lib.Theme[key],
+            Title = key .. " Color",
+        })
+
+        getgenv().Options[cpFlag]:OnChanged(function(color)
+            lib.Theme[key] = color
+            if key == "Accent" then
+                lib.Theme.ToggleOn = color
+                lib.Theme.SliderFill = color
+                lib.AccentColor = color
+            end
+            self:_applyThemeToGui()
+        end)
+    end
+
     -- Save/Load theme
-    if typeof(writefile) == "function" then
-        left:AddButton("Save Theme", function()
+    left:AddButton({
+        Text = "Save Theme",
+        Func = function()
             local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
             local folder = self.Folder .. "/themes"
             pcall(function()
-                if not isfolder(folder) then makefolder(folder) end
-                writefile(folder .. "/current.txt", themeName)
+                if typeof(isfolder) == "function" and not isfolder(folder) then makefolder(folder) end
+                if typeof(writefile) == "function" then
+                    writefile(folder .. "/current.txt", themeName)
+                end
             end)
             if lib.Notify then lib:Notify("Theme saved: " .. themeName, 2) end
-        end)
+        end,
+    })
 
-        left:AddButton("Load Saved Theme", function()
+    left:AddButton({
+        Text = "Load Saved Theme",
+        Func = function()
             local folder = self.Folder .. "/themes"
             local ok, content = pcall(function()
                 return readfile(folder .. "/current.txt")
@@ -230,7 +267,65 @@ function ThemeManager:ApplyToTab(tab)
                 end
                 if lib.Notify then lib:Notify("Theme loaded: " .. content, 2) end
             end
-        end)
+        end,
+    })
+
+    -- Auto-load theme on startup
+    left:AddToggle("AutoLoadTheme", {
+        Text = "Auto-load Theme",
+        Default = false,
+    })
+
+    -- Watermark toggle
+    left:AddToggle("ShowWatermark", {
+        Text = "Show Watermark",
+        Default = false,
+    })
+
+    getgenv().Toggles.ShowWatermark:OnChanged(function()
+        lib:SetWatermarkVisibility(getgenv().Toggles.ShowWatermark.Value)
+    end)
+
+    -- Keybind frame toggle
+    left:AddToggle("ShowKeybindFrame", {
+        Text = "Show Keybind List",
+        Default = false,
+    })
+
+    getgenv().Toggles.ShowKeybindFrame:OnChanged(function()
+        if lib.KeybindFrame then
+            lib.KeybindFrame.Visible = getgenv().Toggles.ShowKeybindFrame.Value
+        end
+    end)
+end
+
+function ThemeManager:ApplyToGroupbox(groupbox)
+    local lib = self.Library
+    if not lib then return end
+
+    local themeNames = self:GetThemes()
+
+    groupbox:AddDropdown("ThemeSelector", {
+        Values = themeNames,
+        Default = "Default",
+        Text = "Theme",
+    })
+
+    getgenv().Options.ThemeSelector:OnChanged(function()
+        self:SetTheme(getgenv().Options.ThemeSelector.Value)
+    end)
+end
+
+function ThemeManager:LoadAutoloadTheme()
+    if getgenv().Toggles.AutoLoadTheme and getgenv().Toggles.AutoLoadTheme.Value then
+        local folder = self.Folder .. "/themes"
+        local ok, content = pcall(function() return readfile(folder .. "/current.txt") end)
+        if ok and content then
+            self:SetTheme(content)
+            if getgenv().Options.ThemeSelector then
+                getgenv().Options.ThemeSelector:SetValue(content)
+            end
+        end
     end
 end
 

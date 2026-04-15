@@ -1,6 +1,6 @@
 --[[
     JopLib - UI Library for Roblox
-    Library.lua - Core: Window, Tabs, Groupboxes, Layout, Dragging, Minimize, Module List
+    Library.lua - Core: Window, Tabs, Groupboxes, TabBoxes, Watermark, KeybindFrame
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -100,7 +100,6 @@ Library.FontSemiBold = Fonts.SemiBold
 Library.FontBold = Fonts.Bold
 Library.Unloaded = false
 
--- Theming tables (populated by ThemeManager)
 Library.Theme = {
     Background       = Color3.fromRGB(20, 20, 20),
     TitleBar         = Color3.fromRGB(25, 25, 25),
@@ -119,14 +118,23 @@ Library.Theme = {
     Border           = Color3.fromRGB(45, 45, 45),
 }
 
--- Element registries
 Library.Elements = {}
 Library.Flags = {}
 Library.Connections = {}
-Library.Modules = {}
-Library.ModuleListGui = nil
-Library.ModuleListEnabled = false
-Library.ModuleListMode = 1
+Library._unloadCallbacks = {}
+Library._openPopup = nil
+
+-- ============================================================
+-- POPUP MANAGEMENT (only one dropdown/colorpicker open at a time)
+-- ============================================================
+
+function Library:ClosePopups()
+    if self._openPopup then
+        local popup = self._openPopup
+        self._openPopup = nil
+        if popup.Close then popup:Close() end
+    end
+end
 
 -- ============================================================
 -- NOTIFICATION SYSTEM
@@ -195,7 +203,6 @@ function Library:Notify(text, duration)
         }),
     })
 
-    -- Calculate needed height
     local textLabel = notif:FindFirstChild("Text")
     local textHeight = textLabel.TextBounds.Y + 16
     textHeight = math.max(textHeight, 30)
@@ -211,41 +218,97 @@ function Library:Notify(text, duration)
 end
 
 -- ============================================================
--- MODULE LIST WIDGET
+-- WATERMARK
 -- ============================================================
 
-function Library:AddModule(info)
-    table.insert(self.Modules, {
-        Name = info.Name or "Module",
-        Toggle = info.Toggle,
-        Keybind = info.Keybind or nil,
-    })
-end
-
-function Library:CreateModuleListGui()
-    if self.ModuleListGui then
-        self.ModuleListGui:Destroy()
-    end
+function Library:CreateWatermark()
+    if self._watermarkGui then return end
 
     local gui = Create("ScreenGui", {
-        Name = "JopLibModuleList",
+        Name = "JopLibWatermark",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         Parent = game:GetService("CoreGui"),
     })
-    self.ModuleListGui = gui
 
     local frame = Create("Frame", {
-        Name = "ModuleListFrame",
-        Size = UDim2.new(0, 180, 0, 30),
-        Position = UDim2.new(0, 10, 0, 300),
-        BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+        Name = "WatermarkFrame",
+        Size = UDim2.new(0, 0, 0, 24),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Position = UDim2.new(0, 10, 0, 10),
+        BackgroundColor3 = self.Theme.TitleBar,
         BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
+        Visible = false,
         Parent = gui,
     }, {
         Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-        Create("UIStroke", { Color = Color3.fromRGB(50, 50, 50), Thickness = 1 }),
+        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+        }),
+        Create("Frame", {
+            Name = "AccentBar",
+            Size = UDim2.new(1, 16, 0, 2),
+            Position = UDim2.new(0, -8, 0, 0),
+            BackgroundColor3 = self.Theme.Accent,
+            BorderSizePixel = 0,
+        }),
+        Create("TextLabel", {
+            Name = "Text",
+            Size = UDim2.new(0, 0, 1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Text = "",
+            TextColor3 = self.Theme.FontPrimary,
+            FontFace = self.FontRegular,
+            TextSize = 12,
+        }),
+    })
+
+    MakeDraggable(frame)
+    self._watermarkGui = gui
+    self._watermarkFrame = frame
+end
+
+function Library:SetWatermark(text)
+    if not self._watermarkGui then self:CreateWatermark() end
+    local label = self._watermarkFrame:FindFirstChild("Text", true)
+    if label then label.Text = text end
+end
+
+function Library:SetWatermarkVisibility(visible)
+    if not self._watermarkGui then self:CreateWatermark() end
+    self._watermarkFrame.Visible = visible
+end
+
+-- ============================================================
+-- KEYBIND FRAME (auto-updating list of registered keybinds)
+-- ============================================================
+
+function Library:CreateKeybindFrame()
+    if self._keybindGui then return end
+
+    local gui = Create("ScreenGui", {
+        Name = "JopLibKeybinds",
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        Parent = game:GetService("CoreGui"),
+    })
+
+    local frame = Create("Frame", {
+        Name = "KeybindFrame",
+        Size = UDim2.new(0, 180, 0, 26),
+        Position = UDim2.new(0, 10, 0, 300),
+        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        Visible = false,
+        Parent = gui,
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 0, 0, 2),
@@ -254,22 +317,21 @@ function Library:CreateModuleListGui()
         }),
         Create("TextLabel", {
             Name = "Title",
-            Size = UDim2.new(1, -8, 0, 20),
-            Position = UDim2.new(0, 4, 0, 4),
+            Size = UDim2.new(1, -8, 0, 22),
+            Position = UDim2.new(0, 4, 0, 3),
             BackgroundTransparency = 1,
             Text = "Keybinds",
-            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextColor3 = self.Theme.FontPrimary,
             TextSize = 13,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
     })
 
-    MakeDraggable(frame)
-
     local listFrame = Create("Frame", {
         Name = "List",
-        Size = UDim2.new(1, -8, 1, -28),
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         Position = UDim2.new(0, 4, 0, 26),
         BackgroundTransparency = 1,
         Parent = frame,
@@ -280,107 +342,70 @@ function Library:CreateModuleListGui()
         }),
     })
 
-    self._moduleListFrame = frame
-    self._moduleListEntries = {}
-
-    for i, def in ipairs(self.Modules) do
-        local entry = Create("Frame", {
-            Name = "Entry_" .. def.Name,
-            Size = UDim2.new(1, 0, 0, 16),
-            BackgroundTransparency = 1,
-            LayoutOrder = i,
-            Parent = listFrame,
-        })
-
-        local label = Create("TextLabel", {
-            Name = "Label",
-            Size = UDim2.new(0.5, -2, 1, 0),
-            Position = UDim2.new(0, 2, 0, 0),
-            BackgroundTransparency = 1,
-            Text = def.Name,
-            TextColor3 = Color3.fromRGB(140, 140, 140),
-            TextSize = 12,
-            FontFace = self.FontRegular,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = entry,
-        })
-
-        local kbLabel = Create("TextLabel", {
-            Name = "Keybind",
-            Size = UDim2.new(0.5, -2, 1, 0),
-            Position = UDim2.new(0.5, 2, 0, 0),
-            BackgroundTransparency = 1,
-            Text = "",
-            TextColor3 = Color3.fromRGB(100, 100, 100),
-            TextSize = 11,
-            FontFace = self.FontRegular,
-            TextXAlignment = Enum.TextXAlignment.Right,
-            Parent = entry,
-        })
-
-        self._moduleListEntries[i] = {
-            frame = entry,
-            label = label,
-            keybindLabel = kbLabel,
-            def = def,
-        }
-    end
-
-    return gui
+    MakeDraggable(frame)
+    self._keybindGui = gui
+    self._keybindFrame = frame
+    self._keybindList = listFrame
+    self.KeybindFrame = frame
 end
 
-function Library:UpdateModuleList()
-    if not self.ModuleListEnabled or not self.ModuleListGui or not self.ModuleListGui.Parent then return end
+function Library:UpdateKeybindFrame()
+    if not self._keybindGui or not self._keybindFrame.Visible then return end
 
-    local toggles = getgenv().Toggles
-    local opts = getgenv().Options
-    if not toggles or not opts then return end
+    local listFrame = self._keybindList
+    for _, child in ipairs(listFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
 
-    local accent = self.Theme.Accent
-    local bar = self._moduleListFrame and self._moduleListFrame:FindFirstChild("AccentBar")
-    if bar then bar.BackgroundColor3 = accent end
-
-    local visibleCount = 0
-
-    for _, entry in ipairs(self._moduleListEntries or {}) do
-        local def = entry.def
-        local toggle = toggles[def.Toggle]
-        local isEnabled = toggle and toggle.Value or false
-
-        local kbText = "[None]"
-        local modeText = ""
-        if def.Keybind and opts[def.Keybind] then
-            local kp = opts[def.Keybind]
-            pcall(function()
-                kbText = "[" .. (kp.Value or "None") .. "]"
-                modeText = "(" .. (kp.Mode or "Toggle") .. ")"
-            end)
-        end
-
-        if self.ModuleListMode == 2 and not isEnabled then
-            entry.frame.Visible = false
-        else
-            entry.frame.Visible = true
-            visibleCount = visibleCount + 1
-
-            if isEnabled then
-                entry.label.TextColor3 = accent
-                entry.label.FontFace = self.FontBold
-            else
-                entry.label.TextColor3 = Color3.fromRGB(140, 140, 140)
-                entry.label.FontFace = self.FontRegular
+    local count = 0
+    local opts = getgenv().Options or {}
+    for flag, opt in pairs(opts) do
+        if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
+            count = count + 1
+            local modeStr = opt.Mode or "Toggle"
+            local stateStr = ""
+            if modeStr == "Toggle" then
+                stateStr = opt._isActive and " [on]" or " [off]"
+            elseif modeStr == "Hold" then
+                stateStr = opt._isActive and " [held]" or ""
+            elseif modeStr == "Always" then
+                stateStr = " [always]"
             end
 
-            if modeText ~= "" then
-                entry.keybindLabel.Text = modeText .. " " .. kbText
-            else
-                entry.keybindLabel.Text = kbText
-            end
+            local entry = Create("Frame", {
+                Size = UDim2.new(1, 0, 0, 16),
+                BackgroundTransparency = 1,
+                LayoutOrder = count,
+                Parent = listFrame,
+            })
+
+            Create("TextLabel", {
+                Size = UDim2.new(0.6, 0, 1, 0),
+                BackgroundTransparency = 1,
+                Text = (opt.Text or flag) .. stateStr,
+                TextColor3 = opt._isActive and self.Theme.Accent or self.Theme.FontSecondary,
+                FontFace = opt._isActive and self.FontSemiBold or self.FontRegular,
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = entry,
+            })
+
+            Create("TextLabel", {
+                Size = UDim2.new(0.4, 0, 1, 0),
+                Position = UDim2.new(0.6, 0, 0, 0),
+                BackgroundTransparency = 1,
+                Text = "[" .. opt.Value .. "]",
+                TextColor3 = self.Theme.FontSecondary,
+                FontFace = self.FontRegular,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Right,
+                Parent = entry,
+            })
         end
     end
 
-    local totalHeight = 28 + (visibleCount * 17)
-    self._moduleListFrame.Size = UDim2.new(0, 180, 0, math.max(30, totalHeight))
+    local totalHeight = 28 + (count * 17)
+    self._keybindFrame.Size = UDim2.new(0, 180, 0, math.max(26, totalHeight))
 end
 
 -- ============================================================
@@ -392,14 +417,14 @@ function Library:CreateWindow(options)
     local title = options.Title or "JopLib"
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
-    local windowWidth = options.Width or 550
-    local windowHeight = options.Height or 400
+    local windowWidth = options.Width or 620
+    local windowHeight = options.Height or 460
+    local tabPadding = options.TabPadding or 8
 
     if self.ScreenGui then
         self.ScreenGui:Destroy()
     end
 
-    -- ScreenGui
     local screenGui = Create("ScreenGui", {
         Name = "JopLib",
         ResetOnSpawn = false,
@@ -408,7 +433,16 @@ function Library:CreateWindow(options)
     })
     self.ScreenGui = screenGui
 
-    -- Main Window Frame
+    -- Popup holder (renders dropdowns/colorpickers above everything)
+    local popupHolder = Create("Frame", {
+        Name = "PopupHolder",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ZIndex = 100,
+        Parent = screenGui,
+    })
+    self._popupHolder = popupHolder
+
     local windowPos
     if center then
         windowPos = UDim2.new(0.5, -windowWidth / 2, 0.5, -windowHeight / 2)
@@ -445,7 +479,6 @@ function Library:CreateWindow(options)
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
     })
 
-    -- Bottom cover for title bar corner (so only top corners are rounded)
     Create("Frame", {
         Name = "BottomCover",
         Size = UDim2.new(1, 0, 0, 8),
@@ -455,7 +488,6 @@ function Library:CreateWindow(options)
         Parent = titleBar,
     })
 
-    -- Accent line under title bar
     Create("Frame", {
         Name = "AccentLine",
         Size = UDim2.new(1, 0, 0, 2),
@@ -467,7 +499,6 @@ function Library:CreateWindow(options)
 
     MakeDraggable(mainFrame, titleBar)
 
-    -- Title text
     Create("TextLabel", {
         Name = "TitleText",
         Size = UDim2.new(1, -16, 1, 0),
@@ -481,23 +512,7 @@ function Library:CreateWindow(options)
         Parent = titleBar,
     })
 
-    -- Minimize button
-    local minimizeBtn = Create("TextButton", {
-        Name = "MinimizeBtn",
-        Size = UDim2.new(0, 22, 0, 22),
-        Position = UDim2.new(1, -28, 0, 5),
-        BackgroundColor3 = Color3.fromRGB(50, 50, 50),
-        BorderSizePixel = 0,
-        Text = "-",
-        TextColor3 = self.Theme.FontPrimary,
-        FontFace = self.FontBold,
-        TextSize = 16,
-        Parent = titleBar,
-    }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-    })
-
-    -- Tab Bar Container (below title bar)
+    -- Tab Bar
     local tabBarContainer = Create("Frame", {
         Name = "TabBarContainer",
         Size = UDim2.new(1, 0, 0, 28),
@@ -522,19 +537,19 @@ function Library:CreateWindow(options)
         Create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 4),
+            Padding = UDim.new(0, tabPadding),
             VerticalAlignment = Enum.VerticalAlignment.Center,
         }),
     })
 
-    -- Content Container (below tab bar, holds tab pages)
+    -- Content Container
     local contentContainer = Create("Frame", {
         Name = "ContentContainer",
         Size = UDim2.new(1, -12, 1, -70),
         Position = UDim2.new(0, 6, 0, 64),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ClipsDescendants = true,
+        ClipsDescendants = false,
         Parent = mainFrame,
     })
 
@@ -546,21 +561,6 @@ function Library:CreateWindow(options)
     Window._contentContainer = contentContainer
     Window._tabOrder = 0
 
-    -- Minimize logic
-    local minimized = false
-    local fullSize = mainFrame.Size
-
-    minimizeBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        if minimized then
-            Tween(mainFrame, {Size = UDim2.new(0, windowWidth, 0, 34)}, 0.2):Play()
-            minimizeBtn.Text = "+"
-        else
-            Tween(mainFrame, {Size = fullSize}, 0.2):Play()
-            minimizeBtn.Text = "-"
-        end
-    end)
-
     -- Toggle visibility keybind
     local toggleConn = UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
@@ -568,15 +568,19 @@ function Library:CreateWindow(options)
 
         local keybind = Library.ToggleKeybind
         if keybind then
-            -- If ToggleKeybind is an Options KeyPicker object
             if type(keybind) == "table" and keybind.Value then
                 local keyName = keybind.Value
-                if keyName == input.KeyCode.Name or keyName == input.UserInputType.Name then
-                    Library:ToggleGui()
-                end
+                local match = false
+                pcall(function()
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        match = keyName == input.KeyCode.Name
+                    else
+                        match = keyName == input.UserInputType.Name
+                    end
+                end)
+                if match then Library:ToggleGui() end
             end
         else
-            -- Default: RightControl
             if input.KeyCode == Enum.KeyCode.RightControl then
                 Library:ToggleGui()
             end
@@ -584,13 +588,14 @@ function Library:CreateWindow(options)
     end)
     table.insert(Library.Connections, toggleConn)
 
-    -- Module list heartbeat
-    local mlConn = RunService.Heartbeat:Connect(function()
-        if Library.ModuleListEnabled then
-            Library:UpdateModuleList()
+    -- Keybind frame heartbeat
+    self:CreateKeybindFrame()
+    local kbConn = RunService.Heartbeat:Connect(function()
+        if not Library.Unloaded then
+            Library:UpdateKeybindFrame()
         end
     end)
-    table.insert(Library.Connections, mlConn)
+    table.insert(Library.Connections, kbConn)
 
     -- ============================================================
     -- TAB
@@ -600,7 +605,6 @@ function Library:CreateWindow(options)
         Window._tabOrder = Window._tabOrder + 1
         local order = Window._tabOrder
 
-        -- Tab button
         local tabBtn = Create("TextButton", {
             Name = "Tab_" .. tabName,
             Size = UDim2.new(0, 0, 0, 22),
@@ -627,7 +631,6 @@ function Library:CreateWindow(options)
             }),
         })
 
-        -- Tab content page (two columns)
         local tabPage = Create("Frame", {
             Name = "TabPage_" .. tabName,
             Size = UDim2.new(1, 0, 1, 0),
@@ -636,7 +639,6 @@ function Library:CreateWindow(options)
             Parent = contentContainer,
         })
 
-        -- Left column
         local leftColumn = Create("ScrollingFrame", {
             Name = "LeftColumn",
             Size = UDim2.new(0.5, -4, 1, 0),
@@ -648,6 +650,7 @@ function Library:CreateWindow(options)
             ScrollingDirection = Enum.ScrollingDirection.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = UDim2.new(0, 0, 0, 0),
+            ClipsDescendants = false,
             Parent = tabPage,
         }, {
             Create("UIListLayout", {
@@ -656,7 +659,6 @@ function Library:CreateWindow(options)
             }),
         })
 
-        -- Right column
         local rightColumn = Create("ScrollingFrame", {
             Name = "RightColumn",
             Size = UDim2.new(0.5, -4, 1, 0),
@@ -668,6 +670,7 @@ function Library:CreateWindow(options)
             ScrollingDirection = Enum.ScrollingDirection.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = UDim2.new(0, 0, 0, 0),
+            ClipsDescendants = false,
             Parent = tabPage,
         }, {
             Create("UIListLayout", {
@@ -684,7 +687,7 @@ function Library:CreateWindow(options)
         Tab._groupOrder = 0
 
         -- ============================================================
-        -- GROUPBOX
+        -- GROUPBOX FACTORY
         -- ============================================================
 
         local function CreateGroupbox(name, parent)
@@ -709,7 +712,6 @@ function Library:CreateWindow(options)
                 }),
             })
 
-            -- Groupbox title
             Create("TextLabel", {
                 Name = "GroupTitle",
                 Size = UDim2.new(1, 0, 0, 18),
@@ -723,7 +725,6 @@ function Library:CreateWindow(options)
                 Parent = groupbox,
             })
 
-            -- Element container inside groupbox
             local elementContainer = Create("Frame", {
                 Name = "Elements",
                 Size = UDim2.new(1, 0, 0, 0),
@@ -743,13 +744,11 @@ function Library:CreateWindow(options)
             Groupbox._container = elementContainer
             Groupbox._elementOrder = 0
 
-            -- Returns a properly ordered container frame for elements
             function Groupbox:_nextOrder()
                 self._elementOrder = self._elementOrder + 1
                 return self._elementOrder
             end
 
-            -- Inject element methods from _GroupboxMethods
             if Library._GroupboxMethods then
                 for k, v in pairs(Library._GroupboxMethods) do
                     if type(v) == "function" then
@@ -769,14 +768,163 @@ function Library:CreateWindow(options)
             return CreateGroupbox(name, rightColumn)
         end
 
+        -- ============================================================
+        -- TABBOX (mini tab container inside a column)
+        -- ============================================================
+
+        local function CreateTabbox(parent)
+            Tab._groupOrder = Tab._groupOrder + 1
+
+            local tabboxFrame = Create("Frame", {
+                Name = "Tabbox",
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundColor3 = Library.Theme.GroupboxBg,
+                BorderSizePixel = 0,
+                LayoutOrder = Tab._groupOrder,
+                Parent = parent,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                Create("UIStroke", { Color = Library.Theme.Border, Thickness = 1 }),
+                Create("UIPadding", {
+                    PaddingTop = UDim.new(0, 4),
+                    PaddingBottom = UDim.new(0, 6),
+                    PaddingLeft = UDim.new(0, 6),
+                    PaddingRight = UDim.new(0, 6),
+                }),
+            })
+
+            local tabRow = Create("Frame", {
+                Name = "TabRow",
+                Size = UDim2.new(1, 0, 0, 22),
+                BackgroundTransparency = 1,
+                LayoutOrder = 0,
+                Parent = tabboxFrame,
+            }, {
+                Create("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4),
+                }),
+            })
+
+            local contentHolder = Create("Frame", {
+                Name = "ContentHolder",
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Parent = tabboxFrame,
+            })
+
+            local TabBox = {}
+            TabBox._tabRow = tabRow
+            TabBox._contentHolder = contentHolder
+            TabBox._tabs = {}
+            TabBox._activeTab = nil
+            TabBox._tabOrder = 0
+
+            function TabBox:AddTab(name)
+                TabBox._tabOrder = TabBox._tabOrder + 1
+                local tOrder = TabBox._tabOrder
+
+                local tbBtn = Create("TextButton", {
+                    Name = "TBTab_" .. name,
+                    Size = UDim2.new(0, 0, 0, 20),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = Library.Theme.TabInactive,
+                    BorderSizePixel = 0,
+                    Text = name,
+                    TextColor3 = Library.Theme.FontSecondary,
+                    FontFace = Library.FontSemiBold,
+                    TextSize = 12,
+                    LayoutOrder = tOrder,
+                    Parent = tabRow,
+                }, {
+                    Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+                    Create("UIPadding", {
+                        PaddingLeft = UDim.new(0, 8),
+                        PaddingRight = UDim.new(0, 8),
+                    }),
+                })
+
+                local tbContent = Create("Frame", {
+                    Name = "TBContent_" .. name,
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Visible = false,
+                    Parent = contentHolder,
+                }, {
+                    Create("UIListLayout", {
+                        SortOrder = Enum.SortOrder.LayoutOrder,
+                        Padding = UDim.new(0, 4),
+                    }),
+                })
+
+                local tbTab = {}
+                tbTab.Name = name
+                tbTab._btn = tbBtn
+                tbTab._content = tbContent
+                tbTab._container = tbContent
+                tbTab._elementOrder = 0
+
+                function tbTab:_nextOrder()
+                    self._elementOrder = self._elementOrder + 1
+                    return self._elementOrder
+                end
+
+                if Library._GroupboxMethods then
+                    for k, v in pairs(Library._GroupboxMethods) do
+                        if type(v) == "function" then
+                            tbTab[k] = v
+                        end
+                    end
+                end
+
+                tbBtn.MouseButton1Click:Connect(function()
+                    for _, t in ipairs(TabBox._tabs) do
+                        t._content.Visible = false
+                        t._btn.BackgroundColor3 = Library.Theme.TabInactive
+                        t._btn.TextColor3 = Library.Theme.FontSecondary
+                    end
+                    tbContent.Visible = true
+                    tbBtn.BackgroundColor3 = Library.Theme.TabActive
+                    tbBtn.TextColor3 = Library.Theme.FontPrimary
+                    TabBox._activeTab = tbTab
+                end)
+
+                table.insert(TabBox._tabs, tbTab)
+
+                if #TabBox._tabs == 1 then
+                    tbContent.Visible = true
+                    tbBtn.BackgroundColor3 = Library.Theme.TabActive
+                    tbBtn.TextColor3 = Library.Theme.FontPrimary
+                    TabBox._activeTab = tbTab
+                end
+
+                return tbTab
+            end
+
+            return TabBox
+        end
+
+        function Tab:AddLeftTabbox()
+            return CreateTabbox(leftColumn)
+        end
+
+        function Tab:AddRightTabbox()
+            return CreateTabbox(rightColumn)
+        end
+
         -- Tab switching
         tabBtn.MouseButton1Click:Connect(function()
+            Library:ClosePopups()
             Window:SwitchTab(Tab)
         end)
 
         Window.Tabs[tabName] = Tab
 
-        -- Activate first tab automatically
         if Window.ActiveTab == nil then
             Window:SwitchTab(Tab)
         end
@@ -785,7 +933,6 @@ function Library:CreateWindow(options)
     end
 
     function Window:SwitchTab(tab)
-        -- Deactivate all tabs
         for _, t in pairs(Window.Tabs) do
             t._page.Visible = false
             local btn = tabBarScroll:FindFirstChild("Tab_" .. t.Name)
@@ -798,7 +945,6 @@ function Library:CreateWindow(options)
             end
         end
 
-        -- Activate selected tab
         tab._page.Visible = true
         local btn = tabBarScroll:FindFirstChild("Tab_" .. tab.Name)
         if btn then
@@ -828,11 +974,23 @@ function Library:ToggleGui()
 end
 
 -- ============================================================
+-- ON UNLOAD CALLBACK
+-- ============================================================
+
+function Library:OnUnload(fn)
+    table.insert(self._unloadCallbacks, fn)
+end
+
+-- ============================================================
 -- UNLOAD
 -- ============================================================
 
 function Library:Unload()
     self.Unloaded = true
+
+    for _, fn in ipairs(self._unloadCallbacks) do
+        pcall(fn)
+    end
 
     for _, conn in ipairs(self.Connections) do
         if typeof(conn) == "RBXScriptConnection" then
@@ -846,25 +1004,20 @@ function Library:Unload()
         self.ScreenGui = nil
     end
 
-    if self.ModuleListGui then
-        self.ModuleListGui:Destroy()
-        self.ModuleListGui = nil
+    if self._watermarkGui then
+        self._watermarkGui:Destroy()
+        self._watermarkGui = nil
+    end
+
+    if self._keybindGui then
+        self._keybindGui:Destroy()
+        self._keybindGui = nil
     end
 
     if NotificationHolder then
         NotificationHolder:Destroy()
         NotificationHolder = nil
     end
-end
-
--- ============================================================
--- APPLY THEME (called by ThemeManager)
--- ============================================================
-
-function Library:UpdateThemeColors()
-    self.AccentColor = self.Theme.Accent
-    -- Theme updates propagate via element :UpdateColors() methods
-    -- Each element stores references and updates them
 end
 
 return Library
