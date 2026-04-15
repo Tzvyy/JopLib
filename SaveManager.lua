@@ -7,7 +7,8 @@ local HttpService = game:GetService("HttpService")
 
 local SaveManager = {}
 SaveManager.Library = nil
-SaveManager.Folder = "JopLib/configs"
+SaveManager.Folder = "JopLib/settings"
+SaveManager.BaseFolder = "JopLib"
 SaveManager.IgnoreIndexes = {}
 SaveManager.IgnoreTheme = false
 
@@ -201,17 +202,23 @@ function SaveManager:GetConfigs()
     return configs
 end
 
+function SaveManager:_getAutoloadPath()
+    return self.BaseFolder .. "/autoload.txt"
+end
+
 function SaveManager:SetAutoload(name)
     if typeof(writefile) ~= "function" then return end
-    self:_ensureFolder()
-    writefile(self.Folder .. "/autoload.txt", name)
+    local path = self:_getAutoloadPath()
+    pcall(function() writefile(path, name) end)
 end
 
 function SaveManager:GetAutoload()
     if typeof(readfile) ~= "function" then return nil end
-    local ok, content = pcall(readfile, self.Folder .. "/autoload.txt")
-    if ok and content and content ~= "" then
-        return content
+    local path = self:_getAutoloadPath()
+    local ok, content = pcall(readfile, path)
+    if ok and content then
+        content = content:match("^%s*(.-)%s*$") or ""
+        if content ~= "" then return content end
     end
     return nil
 end
@@ -331,7 +338,7 @@ function SaveManager:BuildConfigSection(tab)
         else
             pcall(function()
                 if typeof(delfile) == "function" then
-                    delfile(self.Folder .. "/autoload.txt")
+                    delfile(self:_getAutoloadPath())
                 end
             end)
         end

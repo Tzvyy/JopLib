@@ -200,23 +200,32 @@ function ThemeManager:_applyThemeToGui()
     end
 end
 
-function ThemeManager:_getCustomThemesFolder()
-    return ThemeManager.Folder .. "/themes"
+function ThemeManager:_getBaseFolder()
+    return "JopLib"
 end
 
-function ThemeManager:_ensureFolder()
+function ThemeManager:_getThemesFolder()
+    return self:_getBaseFolder() .. "/themes"
+end
+
+function ThemeManager:_getAutoloadPath()
+    return self:_getBaseFolder() .. "/autoload.txt"
+end
+
+function ThemeManager:_ensureFolders()
     pcall(function()
         if typeof(isfolder) == "function" then
-            if not isfolder(ThemeManager.Folder) then makefolder(ThemeManager.Folder) end
-            local sub = ThemeManager.Folder .. "/themes"
-            if not isfolder(sub) then makefolder(sub) end
+            local base = self:_getBaseFolder()
+            if not isfolder(base) then makefolder(base) end
+            local themes = self:_getThemesFolder()
+            if not isfolder(themes) then makefolder(themes) end
         end
     end)
-    return self:_getCustomThemesFolder()
+    return self:_getThemesFolder()
 end
 
 function ThemeManager:_listCustomThemes()
-    local folder = self:_getCustomThemesFolder()
+    local folder = self:_getThemesFolder()
     local themes = {}
     pcall(function()
         if typeof(listfiles) == "function" then
@@ -236,7 +245,7 @@ function ThemeManager:SaveCustomTheme(name)
     if not name or name == "" then return false end
     local lib = self.Library
     if not lib then return false end
-    local folder = self:_ensureFolder()
+    local folder = self:_ensureFolders()
     local data = {}
     for key, color in pairs(lib.Theme) do
         data[key] = {math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)}
@@ -251,7 +260,7 @@ function ThemeManager:LoadCustomTheme(name)
     if not name or name == "" then return false end
     local lib = self.Library
     if not lib then return false end
-    local folder = self:_getCustomThemesFolder()
+    local folder = self:_getThemesFolder()
     local ok, content = pcall(function()
         return readfile(folder .. "/" .. name .. ".json")
     end)
@@ -431,16 +440,16 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
         if ThemeManager._loadingAutoTheme then return end
-        local folder = ThemeManager:_ensureFolder()
+        local path = ThemeManager:_getAutoloadPath()
         pcall(function()
             if val then
                 local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-                writefile(folder .. "/autoload.txt", themeName)
+                writefile(path, themeName)
             else
                 if typeof(delfile) == "function" then
-                    pcall(function() delfile(folder .. "/autoload.txt") end)
+                    pcall(function() delfile(path) end)
                 else
-                    pcall(function() writefile(folder .. "/autoload.txt", "") end)
+                    pcall(function() writefile(path, "") end)
                 end
             end
         end)
@@ -498,11 +507,11 @@ function ThemeManager:ApplyToGroupbox(groupbox)
 end
 
 function ThemeManager:SaveCurrentTheme()
-    local folder = self:_ensureFolder()
+    local path = self:_getAutoloadPath()
     local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
     local lib = self.Library
     local ok, err = pcall(function()
-        writefile(folder .. "/autoload.txt", themeName)
+        writefile(path, themeName)
     end)
     if lib and lib.Notify then
         if ok then
@@ -515,8 +524,8 @@ end
 
 function ThemeManager:LoadAutoloadTheme()
     task.defer(function()
-        local folder = self:_getCustomThemesFolder()
-        local ok, content = pcall(function() return readfile(folder .. "/autoload.txt") end)
+        local path = self:_getAutoloadPath()
+        local ok, content = pcall(function() return readfile(path) end)
         if not ok or not content then return end
         content = content:match("^%s*(.-)%s*$") or ""
         if content == "" then return end

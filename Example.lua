@@ -308,9 +308,6 @@ Library.ToggleKeybind = Options.MenuKeybind
 -- THEME + CONFIG (addons)
 -- ============================================================
 
-ThemeManager:SetFolder("MyScriptHub")
-SaveManager:SetFolder("MyScriptHub/specific-game")
-
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
 
