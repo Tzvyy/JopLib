@@ -203,7 +203,7 @@ function SaveManager:GetConfigs()
 end
 
 function SaveManager:_getAutoloadPath()
-    return self.Folder .. "/settings/autoload.txt"
+    return self.Folder .. "/autoload.txt"
 end
 
 function SaveManager:LoadAutoloadConfig()
