@@ -3,7 +3,7 @@
     Shows all available UI elements and features
     
     Load from GitHub (replace with your actual URL):
-    local repo = "https://raw.githubusercontent.com/YOUR_USER/JopLib/main/"
+    local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
     
     Load locally (if using readfile):
     local repo = "JopLib/"
@@ -13,7 +13,7 @@
 -- LOADING (GitHub method)
 -- ============================================================
 
-local repo = "https://raw.githubusercontent.com/YOUR_USER/JopLib/main/"
+local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
 
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local Elements = loadstring(game:HttpGet(repo .. "Elements.lua"))()

@@ -6,7 +6,7 @@ A full-featured Roblox UI library inspired by Linoria. Uses native Roblox Instan
 
 ### From GitHub
 ```lua
-local repo = "https://raw.githubusercontent.com/YOUR_USER/JopLib/main/"
+local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local Elements = loadstring(game:HttpGet(repo .. "Elements.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo .. "ThemeManager.lua"))()
