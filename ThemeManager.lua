@@ -98,12 +98,21 @@ function ThemeManager:SetTheme(name)
 
     self:_applyThemeToGui()
 
-    -- Update color picker previews
+    -- Update color picker previews (indexed flags matching colorMap)
     local opts = getgenv().Options or {}
-    for key, _ in pairs(theme) do
-        local cpFlag = "ThemeColor_" .. key
-        if opts[cpFlag] then
-            pcall(function() opts[cpFlag]:SetValue(theme[key]) end)
+    local colorMap = {
+        { keys = {"Background", "GroupboxBg"} },
+        { keys = {"TitleBar", "TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { keys = {"Accent", "ToggleOn", "SliderFill"} },
+        { keys = {"Border", "ElementBorder"} },
+        { keys = {"FontPrimary"} },
+        { keys = {"FontSecondary"} },
+    }
+    for i, entry in ipairs(colorMap) do
+        local cpFlag = "ThemeColor_" .. i
+        local firstKey = entry.keys[1]
+        if opts[cpFlag] and theme[firstKey] then
+            pcall(function() opts[cpFlag]:SetValue(theme[firstKey]) end)
         end
     end
 
@@ -186,8 +195,8 @@ function ThemeManager:ApplyToTab(tab)
         Text = "Theme",
     })
 
-    getgenv().Options.ThemeSelector:OnChanged(function()
-        self:SetTheme(getgenv().Options.ThemeSelector.Value)
+    getgenv().Options.ThemeSelector:OnChanged(function(val)
+        ThemeManager:SetTheme(val)
     end)
 
     -- Simplified color pickers (6 categories)
@@ -215,7 +224,7 @@ function ThemeManager:ApplyToTab(tab)
             if entry.keys[1] == "Accent" then
                 lib.AccentColor = color
             end
-            self:_applyThemeToGui()
+            ThemeManager:_applyThemeToGui()
         end)
     end
 
@@ -224,30 +233,30 @@ function ThemeManager:ApplyToTab(tab)
         Text = "Save Theme",
         Func = function()
             local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-            local folder = self.Folder .. "/themes"
+            local folder = ThemeManager.Folder .. "/themes"
             pcall(function()
                 if typeof(isfolder) == "function" and not isfolder(folder) then makefolder(folder) end
                 if typeof(writefile) == "function" then
                     writefile(folder .. "/current.txt", themeName)
                 end
             end)
-            if lib.Notify then lib:Notify("Theme saved: " .. themeName, 2) end
+            if lib and lib.Notify then lib:Notify("Theme saved: " .. tostring(themeName), 2) end
         end,
     })
 
     left:AddButton({
-        Text = "Load Saved Theme",
+        Text = "Load Theme",
         Func = function()
-            local folder = self.Folder .. "/themes"
+            local folder = ThemeManager.Folder .. "/themes"
             local ok, content = pcall(function()
                 return readfile(folder .. "/current.txt")
             end)
-            if ok and content then
-                self:SetTheme(content)
+            if ok and content and content ~= "" then
+                ThemeManager:SetTheme(content)
                 if getgenv().Options.ThemeSelector then
                     getgenv().Options.ThemeSelector:SetValue(content)
                 end
-                if lib.Notify then lib:Notify("Theme loaded: " .. content, 2) end
+                if lib and lib.Notify then lib:Notify("Theme loaded: " .. tostring(content), 2) end
             end
         end,
     })
@@ -304,17 +313,17 @@ function ThemeManager:ApplyToGroupbox(groupbox)
         Text = "Theme",
     })
 
-    getgenv().Options.ThemeSelector:OnChanged(function()
-        self:SetTheme(getgenv().Options.ThemeSelector.Value)
+    getgenv().Options.ThemeSelector:OnChanged(function(val)
+        ThemeManager:SetTheme(val)
     end)
 end
 
 function ThemeManager:LoadAutoloadTheme()
     if getgenv().Toggles.AutoLoadTheme and getgenv().Toggles.AutoLoadTheme.Value then
-        local folder = self.Folder .. "/themes"
+        local folder = ThemeManager.Folder .. "/themes"
         local ok, content = pcall(function() return readfile(folder .. "/current.txt") end)
         if ok and content then
-            self:SetTheme(content)
+            ThemeManager:SetTheme(content)
             if getgenv().Options.ThemeSelector then
                 getgenv().Options.ThemeSelector:SetValue(content)
             end

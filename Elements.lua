@@ -307,7 +307,7 @@ function Elements:Setup(Library)
         sliderObj._fill = fill
         sliderObj._valueLabel = valueLabel
 
-        -- Click on value to type a number (only edit the value, keep /max visible)
+        -- Click on value to type a number (only edit the value, keep /max suffix visible)
         valueLabel.MouseButton1Click:Connect(function()
             local suffixText = ""
             if not compact and not hideMax then
@@ -316,21 +316,51 @@ function Elements:Setup(Library)
                 suffixText = suffix
             end
 
+            -- Hide the value label, show an inline editor
+            valueLabel.Visible = false
+
+            local editHolder = Create("Frame", {
+                Name = "EditHolder",
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Parent = valueBg,
+            })
+
             local inputBox = Create("TextBox", {
+                Name = "NumInput",
                 Size = UDim2.new(0, 0, 1, 0),
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
                 Text = tostring(sliderObj.Value),
-                TextColor3 = lib.Theme.Accent,
+                TextColor3 = lib.Theme.FontPrimary,
                 FontFace = lib.FontRegular,
                 TextSize = 12,
                 ClearTextOnFocus = false,
-                Parent = valueBg,
+                LayoutOrder = 0,
+                Parent = editHolder,
             })
 
-            valueLabel.Visible = false
+            local suffixLabel = Create("TextLabel", {
+                Name = "Suffix",
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Text = suffixText,
+                TextColor3 = lib.Theme.FontSecondary,
+                FontFace = lib.FontRegular,
+                TextSize = 12,
+                LayoutOrder = 1,
+                Parent = editHolder,
+            })
+
+            Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = editHolder,
+            })
+
             inputBox:CaptureFocus()
-            inputBox.Text = tostring(sliderObj.Value)
 
             -- Only allow numeric input
             inputBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -343,7 +373,7 @@ function Elements:Setup(Library)
             inputBox.FocusLost:Connect(function()
                 local num = tonumber(inputBox.Text)
                 if num then sliderObj:SetValue(num) end
-                inputBox:Destroy()
+                editHolder:Destroy()
                 valueLabel.Visible = true
             end)
         end)
@@ -630,10 +660,12 @@ function Elements:Setup(Library)
         local maxVisible = 6
         local itemHeight = 22
         local dropList = nil
+        local dropTrackConn = nil
 
         local function closeDrop()
             open = false
             arrow.Text = "\226\150\188"
+            if dropTrackConn then dropTrackConn:Disconnect() dropTrackConn = nil end
             if dropList then dropList:Destroy() dropList = nil end
         end
 
@@ -728,6 +760,19 @@ function Elements:Setup(Library)
                 buildItems()
                 lib._openPopup = popupObj
                 lib:_showClickCatcher()
+
+                -- Track dropdown position while scrolling
+                dropTrackConn = RunService.Heartbeat:Connect(function()
+                    if not dropList or not dropList.Parent then
+                        if dropTrackConn then dropTrackConn:Disconnect() dropTrackConn = nil end
+                        return
+                    end
+                    local ap = dropBtn.AbsolutePosition
+                    local as = dropBtn.AbsoluteSize
+                    dropList.Position = UDim2.new(0, ap.X, 0, ap.Y + as.Y + 2)
+                    dropList.Size = UDim2.new(0, as.X, 0, dropList.Size.Y.Offset)
+                end)
+                table.insert(lib.Connections, dropTrackConn)
             end
         end)
 
@@ -1188,8 +1233,10 @@ function Elements:Setup(Library)
         cpObj._preview = preview
 
         local pickerFrame = nil
+        local pickerTrackConn = nil
 
         local function closePicker()
+            if pickerTrackConn then pickerTrackConn:Disconnect() pickerTrackConn = nil end
             if pickerFrame then pickerFrame:Destroy() pickerFrame = nil end
         end
 
@@ -1230,6 +1277,17 @@ function Elements:Setup(Library)
             })
 
             lib:_showClickCatcher()
+
+            -- Keep picker attached to the preview box while scrolling
+            pickerTrackConn = RunService.Heartbeat:Connect(function()
+                if not pickerFrame or not pickerFrame.Parent then
+                    if pickerTrackConn then pickerTrackConn:Disconnect() pickerTrackConn = nil end
+                    return
+                end
+                local ap = preview.AbsolutePosition
+                pickerFrame.Position = UDim2.new(0, ap.X, 0, ap.Y + 22)
+            end)
+            table.insert(lib.Connections, pickerTrackConn)
 
             Create("TextLabel", {
                 Name = "Title",

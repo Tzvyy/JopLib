@@ -134,15 +134,10 @@ function Library:ClosePopups()
         self._openPopup = nil
         if popup.Close then popup:Close() end
     end
-    if self._popupClickCatcher then
-        self._popupClickCatcher.Visible = false
-    end
 end
 
 function Library:_showClickCatcher()
-    if self._popupClickCatcher then
-        self._popupClickCatcher.Visible = true
-    end
+    -- No-op: we use InputBegan listener instead
 end
 
 -- ============================================================
@@ -454,20 +449,33 @@ function Library:CreateWindow(options)
     })
     self._popupHolder = popupHolder
 
-    -- Close popups on click outside
-    local popupClickCatcher = Create("TextButton", {
-        Name = "PopupClickCatcher",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text = "",
-        ZIndex = 99,
-        Visible = false,
-        Parent = screenGui,
-    })
-    popupClickCatcher.MouseButton1Click:Connect(function()
-        Library:ClosePopups()
+    -- Close popups on click outside (deferred by 1 frame to avoid stealing the triggering click)
+    local outsideClickConn = UserInputService.InputBegan:Connect(function(input, processed)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        if not Library._openPopup then return end
+
+        -- Check if click is inside the popup holder's children
+        local mousePos = input.Position
+        local isInsidePopup = false
+        for _, child in ipairs(popupHolder:GetChildren()) do
+            if child:IsA("GuiObject") and child.Visible then
+                local pos = child.AbsolutePosition
+                local size = child.AbsoluteSize
+                if mousePos.X >= pos.X and mousePos.X <= pos.X + size.X
+                    and mousePos.Y >= pos.Y and mousePos.Y <= pos.Y + size.Y then
+                    isInsidePopup = true
+                    break
+                end
+            end
+        end
+
+        if not isInsidePopup then
+            task.defer(function()
+                Library:ClosePopups()
+            end)
+        end
     end)
-    self._popupClickCatcher = popupClickCatcher
+    table.insert(self.Connections, outsideClickConn)
 
     local windowPos
     if center then
@@ -575,7 +583,7 @@ function Library:CreateWindow(options)
         Position = UDim2.new(0, 6, 0, 64),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ClipsDescendants = false,
+        ClipsDescendants = true,
         Parent = mainFrame,
     })
 
@@ -676,7 +684,7 @@ function Library:CreateWindow(options)
             ScrollingDirection = Enum.ScrollingDirection.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = UDim2.new(0, 0, 0, 0),
-            ClipsDescendants = false,
+            ClipsDescendants = true,
             Parent = tabPage,
         }, {
             Create("UIListLayout", {
@@ -696,7 +704,7 @@ function Library:CreateWindow(options)
             ScrollingDirection = Enum.ScrollingDirection.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = UDim2.new(0, 0, 0, 0),
-            ClipsDescendants = false,
+            ClipsDescendants = true,
             Parent = tabPage,
         }, {
             Create("UIListLayout", {
@@ -821,6 +829,10 @@ function Library:CreateWindow(options)
                     PaddingBottom = UDim.new(0, 6),
                     PaddingLeft = UDim.new(0, 6),
                     PaddingRight = UDim.new(0, 6),
+                }),
+                Create("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4),
                 }),
             })
 
