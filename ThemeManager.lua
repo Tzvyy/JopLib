@@ -9,6 +9,7 @@ local ThemeManager = {}
 ThemeManager.Library = nil
 ThemeManager.Folder = "JopLib"
 ThemeManager.BuiltInThemes = {}
+ThemeManager._currentThemeName = "Default"
 
 -- ============================================================
 -- BUILT-IN THEMES
@@ -90,6 +91,8 @@ function ThemeManager:SetTheme(name)
 
     local lib = self.Library
     if not lib then return false end
+
+    self._currentThemeName = name
 
     for key, color in pairs(theme) do
         lib.Theme[key] = color
@@ -273,6 +276,7 @@ function ThemeManager:LoadCustomTheme(name)
         end
     end
     if lib.Theme.Accent then lib.AccentColor = lib.Theme.Accent end
+    self._currentThemeName = name
     self:_applyThemeToGui()
     return true
 end
@@ -422,6 +426,14 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
         if ThemeManager:LoadCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme loaded: " .. name, 2) end
+            -- Update autoload display and save if enabled
+            local autoToggle = getgenv().Toggles.AutoLoadTheme
+            if autoToggle then
+                autoToggle:SetValueText(name)
+                if autoToggle.Value then
+                    ThemeManager:_saveAutoloadSilent(name)
+                end
+            end
         end
     end)
 
@@ -445,22 +457,21 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
         if ThemeManager._loadingAutoTheme then return end
-        local path = ThemeManager:_getAutoloadPath()
         local toggle = getgenv().Toggles.AutoLoadTheme
-        pcall(function()
-            if val then
-                local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-                writefile(path, themeName)
-                if toggle then toggle:SetValueText(themeName) end
-            else
+        if val then
+            local themeName = ThemeManager._currentThemeName or "Default"
+            ThemeManager:_saveAutoloadSilent(themeName)
+            if toggle then toggle:SetValueText(themeName) end
+        else
+            pcall(function()
                 if typeof(delfile) == "function" then
-                    pcall(function() delfile(path) end)
+                    pcall(function() delfile(ThemeManager:_getAutoloadPath()) end)
                 else
-                    pcall(function() writefile(path, "") end)
+                    pcall(function() writefile(ThemeManager:_getAutoloadPath(), "") end)
                 end
-                if toggle then toggle:SetValueText("") end
-            end
-        end)
+            end)
+            if toggle then toggle:SetValueText("") end
+        end
     end)
 
     -- ── Menu toggles (added to existing Menu groupbox if provided) ──
@@ -523,7 +534,7 @@ function ThemeManager:_saveAutoloadSilent(themeName)
 end
 
 function ThemeManager:SaveCurrentTheme()
-    local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+    local themeName = self._currentThemeName or "Default"
     self:_saveAutoloadSilent(themeName)
     local lib = self.Library
     if lib and lib.Notify then
