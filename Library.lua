@@ -190,7 +190,7 @@ function Library:Notify(text, duration)
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 0, 0, 3),
-            Position = UDim2.new(0, 0, 0, 1),
+            Position = UDim2.new(0, 0, 0, 3),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -258,7 +258,7 @@ function Library:CreateWatermark()
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 16, 0, 3),
-            Position = UDim2.new(0, -8, 0, 1),
+            Position = UDim2.new(0, -8, 0, 3),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -320,7 +320,7 @@ function Library:CreateKeybindFrame()
         Create("Frame", {
             Name = "AccentBar",
             Size = UDim2.new(1, 0, 0, 3),
-            Position = UDim2.new(0, 0, 0, 1),
+            Position = UDim2.new(0, 0, 0, 3),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -377,10 +377,10 @@ function Library:UpdateKeybindFrame()
             local isActive = opt._isActive or (modeStr == "Always")
             local textColor = isActive and self.Theme.Accent or self.Theme.FontSecondary
 
-            local entryHeight = isActive and 19 or 18
-            local mainSize = isActive and 13.5 or 13
-            local modeSize = isActive and 12.5 or 12
-            local fontFace = isActive and self.FontSemiBold or self.FontRegular
+            local entryHeight = 18
+            local mainSize = 13
+            local modeSize = 12
+            local fontFace = self.FontRegular
 
             local entry = Create("Frame", {
                 Size = UDim2.new(1, 0, 0, entryHeight),
