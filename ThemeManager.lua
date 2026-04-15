@@ -285,7 +285,12 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
-        if getgenv().Toggles.AutoLoadTheme and getgenv().Toggles.AutoLoadTheme.Value then
+        local autoLoad = getgenv().Toggles.AutoLoadTheme
+        if autoLoad and autoLoad.Value then
+            local lib = self.Library
+            if lib and lib.Notify then
+                lib:Notify("Saving theme for auto-load: " .. tostring(val), 2)
+            end
             ThemeManager:SaveCurrentTheme()
         end
     end)
@@ -494,10 +499,18 @@ end
 
 function ThemeManager:SaveCurrentTheme()
     local folder = self:_ensureFolder()
-    local builtIn = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-    pcall(function()
-        writefile(folder .. "/autoload.txt", builtIn)
+    local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+    local lib = self.Library
+    local ok, err = pcall(function()
+        writefile(folder .. "/autoload.txt", themeName)
     end)
+    if lib and lib.Notify then
+        if ok then
+            lib:Notify("Auto-load saved: " .. themeName, 2)
+        else
+            lib:Notify("Auto-load save failed: " .. tostring(err), 3)
+        end
+    end
 end
 
 function ThemeManager:LoadAutoloadTheme()
