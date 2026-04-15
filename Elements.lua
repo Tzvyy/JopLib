@@ -148,14 +148,40 @@ function Elements:Setup(Library)
         getgenv().Toggles[flag] = toggleObj
         lib.Flags[flag] = toggleObj
 
+        function toggleObj:_layoutAccessories()
+            local rightOffset = 2
+            -- KeyPicker is rightmost
+            if self._kpFlag then
+                local kpFrame = self._container:FindFirstChild("KeyPicker_" .. self._kpFlag)
+                if kpFrame then
+                    kpFrame.Position = UDim2.new(1, -(rightOffset + 55), 0, 0)
+                    rightOffset = rightOffset + 55 + 4
+                end
+            end
+            -- ColorPicker is to the left of keybind
+            if self._cpFlag then
+                local cpPreview = self._container:FindFirstChild("ColorPreview_" .. self._cpFlag)
+                if cpPreview then
+                    cpPreview.Position = UDim2.new(1, -(rightOffset + 18), 0, 2)
+                    rightOffset = rightOffset + 18 + 4
+                end
+            end
+        end
+
         function toggleObj:AddKeyPicker(kpFlag, kpOptions)
             kpOptions = kpOptions or {}
             kpOptions.SyncToggleState = flag
-            return Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, lib)
+            local kp = Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, lib)
+            toggleObj._kpFlag = kpFlag
+            toggleObj:_layoutAccessories()
+            return kp
         end
 
         function toggleObj:AddColorPicker(cpFlag, cpOptions)
-            return Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, lib)
+            local cp = Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, lib)
+            toggleObj._cpFlag = cpFlag
+            toggleObj:_layoutAccessories()
+            return cp
         end
 
         return toggleObj
