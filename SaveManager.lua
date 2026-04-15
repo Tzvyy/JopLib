@@ -303,7 +303,7 @@ function SaveManager:BuildConfigSection(tab)
     })
 
     right:AddButton({
-        Text = "Refresh Config List",
+        Text = "Refresh list",
         Func = function()
             local newConfigs = self:GetConfigs()
             if getgenv().Options.ConfigList then

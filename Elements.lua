@@ -788,6 +788,8 @@ function Elements:Setup(Library)
             if open then
                 closeDrop()
                 lib._openPopup = nil
+                lib._justClosedPopup = true
+                task.defer(function() lib._justClosedPopup = false end)
             else
                 lib:ClosePopups()
                 open = true

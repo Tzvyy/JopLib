@@ -179,28 +179,28 @@ function Library:Notify(text, duration)
 
     local notif = Create("Frame", {
         Size = UDim2.new(1, 0, 0, 0),
-        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundColor3 = self.Theme.Background,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Parent = holder,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 2),
+            Size = UDim2.new(1, 0, 0, 3),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
         Create("TextLabel", {
             Name = "Text",
-            Size = UDim2.new(1, -16, 1, -10),
-            Position = UDim2.new(0, 8, 0, 5),
+            Size = UDim2.new(1, -16, 1, -12),
+            Position = UDim2.new(0, 8, 0, 7),
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = self.Theme.FontPrimary,
             FontFace = self.FontRegular,
-            TextSize = 13,
+            TextSize = 14,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
@@ -237,16 +237,17 @@ function Library:CreateWatermark()
 
     local frame = Create("Frame", {
         Name = "WatermarkFrame",
-        Size = UDim2.new(0, 0, 0, 24),
+        Size = UDim2.new(0, 0, 0, 28),
         AutomaticSize = Enum.AutomaticSize.X,
         Position = UDim2.new(0, 10, 0, 10),
-        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundColor3 = self.Theme.Background,
         BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
         Visible = false,
         Parent = gui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("UIPadding", {
             PaddingLeft = UDim.new(0, 8),
@@ -254,7 +255,7 @@ function Library:CreateWatermark()
         }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 16, 0, 2),
+            Size = UDim2.new(1, 16, 0, 3),
             Position = UDim2.new(0, -8, 0, 0),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
@@ -267,7 +268,7 @@ function Library:CreateWatermark()
             Text = "",
             TextColor3 = self.Theme.FontSecondary,
             FontFace = self.FontRegular,
-            TextSize = 12,
+            TextSize = 14,
         }),
     })
 
@@ -303,30 +304,31 @@ function Library:CreateKeybindFrame()
 
     local frame = Create("Frame", {
         Name = "KeybindFrame",
-        Size = UDim2.new(0, 180, 0, 26),
+        Size = UDim2.new(0, 220, 0, 30),
         Position = UDim2.new(0, 10, 0, 300),
-        BackgroundColor3 = self.Theme.TitleBar,
+        BackgroundColor3 = self.Theme.Background,
         BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
         Visible = false,
         Parent = gui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 2),
+            Size = UDim2.new(1, 0, 0, 3),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
         Create("TextLabel", {
             Name = "Title",
-            Size = UDim2.new(1, -8, 0, 22),
-            Position = UDim2.new(0, 4, 0, 3),
+            Size = UDim2.new(1, -8, 0, 24),
+            Position = UDim2.new(0, 6, 0, 5),
             BackgroundTransparency = 1,
             Text = "Keybinds",
             TextColor3 = self.Theme.FontSecondary,
-            TextSize = 13,
+            TextSize = 14,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
@@ -334,15 +336,15 @@ function Library:CreateKeybindFrame()
 
     local listFrame = Create("Frame", {
         Name = "List",
-        Size = UDim2.new(1, -8, 0, 0),
+        Size = UDim2.new(1, -10, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        Position = UDim2.new(0, 4, 0, 26),
+        Position = UDim2.new(0, 5, 0, 30),
         BackgroundTransparency = 1,
         Parent = frame,
     }, {
         Create("UIListLayout", {
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 1),
+            Padding = UDim.new(0, 2),
         }),
     })
 
@@ -372,8 +374,13 @@ function Library:UpdateKeybindFrame()
             local isActive = opt._isActive or (modeStr == "Always")
             local textColor = isActive and self.Theme.Accent or self.Theme.FontSecondary
 
+            local entryHeight = isActive and 20 or 18
+            local mainSize = isActive and 14 or 13
+            local modeSize = isActive and 13 or 12
+            local fontFace = isActive and self.FontSemiBold or self.FontRegular
+
             local entry = Create("Frame", {
-                Size = UDim2.new(1, 0, 0, 16),
+                Size = UDim2.new(1, 0, 0, entryHeight),
                 BackgroundTransparency = 1,
                 LayoutOrder = count,
                 Parent = listFrame,
@@ -384,8 +391,8 @@ function Library:UpdateKeybindFrame()
                 BackgroundTransparency = 1,
                 Text = (opt.Text or flag) .. " [" .. opt.Value .. "]",
                 TextColor3 = textColor,
-                FontFace = self.FontRegular,
-                TextSize = 12,
+                FontFace = fontFace,
+                TextSize = mainSize,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = entry,
             })
@@ -396,16 +403,16 @@ function Library:UpdateKeybindFrame()
                 BackgroundTransparency = 1,
                 Text = "(" .. modeStr .. ")",
                 TextColor3 = textColor,
-                FontFace = self.FontRegular,
-                TextSize = 11,
+                FontFace = fontFace,
+                TextSize = modeSize,
                 TextXAlignment = Enum.TextXAlignment.Right,
                 Parent = entry,
             })
         end
     end
 
-    local totalHeight = 28 + (count * 17)
-    self._keybindFrame.Size = UDim2.new(0, 180, 0, math.max(26, totalHeight))
+    local totalHeight = 34 + (count * 21)
+    self._keybindFrame.Size = UDim2.new(0, 220, 0, math.max(30, totalHeight))
 end
 
 -- ============================================================
@@ -465,7 +472,9 @@ function Library:CreateWindow(options)
 
         if not isInsidePopup then
             task.defer(function()
-                Library:ClosePopups()
+                if not Library._justClosedPopup then
+                    Library:ClosePopups()
+                end
             end)
         end
     end)
