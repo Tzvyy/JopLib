@@ -355,6 +355,21 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Custom Themes",
     })
 
+    getgenv().Options.CustomThemeList:OnChanged(function(val)
+        if not val or val == "" then return end
+        if ThemeManager:LoadCustomTheme(val) then
+            -- Skip autoload save if we're loading from autoload
+            if ThemeManager._loadingAutoTheme then return end
+            local autoToggle = getgenv().Toggles.AutoLoadTheme
+            if autoToggle then
+                autoToggle:SetValueText(val)
+                if autoToggle.Value then
+                    ThemeManager:_saveAutoloadSilent(val)
+                end
+            end
+        end
+    end)
+
     -- Side-by-side Save/Load buttons
     local btnOrder = right:_nextOrder()
     local Create = function(cls, props, children)
