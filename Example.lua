@@ -245,10 +245,10 @@ SubDepbox:SetupDependencies({
 })
 
 -- ============================================================
--- WATERMARK
+-- WATERMARK (hidden by default, toggle in UI Settings)
 -- ============================================================
 
-Library:SetWatermarkVisibility(true)
+Library:SetWatermarkVisibility(false)
 
 local FrameTimer = tick()
 local FrameCounter = 0
@@ -270,10 +270,10 @@ local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(
 end)
 
 -- ============================================================
--- KEYBIND FRAME
+-- KEYBIND FRAME (hidden by default, toggle in UI Settings)
 -- ============================================================
 
-Library.KeybindFrame.Visible = true
+Library.KeybindFrame.Visible = false
 
 -- ============================================================
 -- UNLOAD HANDLER

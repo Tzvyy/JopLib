@@ -122,13 +122,26 @@ function Elements:Setup(Library)
 
         local btn = Create("TextButton", {
             Name = "ClickArea",
-            Size = UDim2.new(1, 0, 1, 0),
+            Size = UDim2.new(0, 16, 0, 16),
+            Position = UDim2.new(0, 0, 0.5, -8),
+            BackgroundTransparency = 1,
+            Text = "",
+            Parent = container,
+        })
+
+        local labelBtn = Create("TextButton", {
+            Name = "LabelClick",
+            Size = UDim2.new(1, -24, 1, 0),
+            Position = UDim2.new(0, 22, 0, 0),
             BackgroundTransparency = 1,
             Text = "",
             Parent = container,
         })
 
         btn.MouseButton1Click:Connect(function()
+            toggleObj:SetValue(not toggleObj.Value)
+        end)
+        labelBtn.MouseButton1Click:Connect(function()
             toggleObj:SetValue(not toggleObj.Value)
         end)
 
@@ -237,17 +250,34 @@ function Elements:Setup(Library)
             valText = tostring(default) .. " / " .. tostring(max) .. suffix
         end
 
+        local valueBg = Create("Frame", {
+            Name = "ValueBg",
+            Size = UDim2.new(0, 0, 0, 16),
+            AutomaticSize = Enum.AutomaticSize.X,
+            Position = UDim2.new(1, 0, 0, 0),
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundColor3 = lib.Theme.ElementBg,
+            BorderSizePixel = 0,
+            Parent = container,
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+            Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 4),
+                PaddingRight = UDim.new(0, 4),
+            }),
+        })
+
         local valueLabel = Create("TextButton", {
             Name = "Value",
-            Size = UDim2.new(compact and 1 or 0.4, 0, 0, 16),
-            Position = UDim2.new(compact and 0 or 0.6, 0, 0, 0),
+            Size = UDim2.new(0, 0, 1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
             BackgroundTransparency = 1,
             Text = valText,
             TextColor3 = lib.Theme.FontSecondary,
             FontFace = lib.FontRegular,
             TextSize = 12,
-            TextXAlignment = compact and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
-            Parent = container,
+            Parent = valueBg,
         })
 
         local sliderY = compact and 0 or 20
@@ -277,28 +307,44 @@ function Elements:Setup(Library)
         sliderObj._fill = fill
         sliderObj._valueLabel = valueLabel
 
-        -- Click on value to type a number
+        -- Click on value to type a number (only edit the value, keep /max visible)
         valueLabel.MouseButton1Click:Connect(function()
+            local suffixText = ""
+            if not compact and not hideMax then
+                suffixText = " / " .. tostring(max) .. suffix
+            elseif suffix ~= "" then
+                suffixText = suffix
+            end
+
             local inputBox = Create("TextBox", {
-                Size = valueLabel.Size,
-                Position = valueLabel.Position,
-                BackgroundColor3 = lib.Theme.ElementBg,
-                BorderSizePixel = 0,
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
                 Text = tostring(sliderObj.Value),
-                TextColor3 = lib.Theme.FontPrimary,
+                TextColor3 = lib.Theme.Accent,
                 FontFace = lib.FontRegular,
                 TextSize = 12,
-                ClearTextOnFocus = true,
-                Parent = container,
-            }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
-                Create("UIStroke", { Color = lib.Theme.Accent, Thickness = 1 }),
+                ClearTextOnFocus = false,
+                Parent = valueBg,
             })
+
+            valueLabel.Visible = false
             inputBox:CaptureFocus()
+            inputBox.Text = tostring(sliderObj.Value)
+
+            -- Only allow numeric input
+            inputBox:GetPropertyChangedSignal("Text"):Connect(function()
+                local cleaned = inputBox.Text:gsub("[^%d%.%-]", "")
+                if cleaned ~= inputBox.Text then
+                    inputBox.Text = cleaned
+                end
+            end)
+
             inputBox.FocusLost:Connect(function()
                 local num = tonumber(inputBox.Text)
                 if num then sliderObj:SetValue(num) end
                 inputBox:Destroy()
+                valueLabel.Visible = true
             end)
         end)
 
@@ -390,7 +436,7 @@ function Elements:Setup(Library)
                 if isDouble and not confirming then
                     confirming = true
                     btn.Text = "Are you sure?"
-                    btn.TextColor3 = Color3.fromRGB(255, 200, 50)
+                    btn.TextColor3 = lib.Theme.Accent
                     task.delay(3, function()
                         if confirming then
                             confirming = false
@@ -681,6 +727,7 @@ function Elements:Setup(Library)
                 arrow.Text = "\226\150\178"
                 buildItems()
                 lib._openPopup = popupObj
+                lib:_showClickCatcher()
             end
         end)
 
@@ -991,6 +1038,7 @@ function Elements:Setup(Library)
             end
 
             lib._openPopup = { Close = closeMenu }
+            lib:_showClickCatcher()
         end)
 
         -- Key listening
@@ -1166,10 +1214,12 @@ function Elements:Setup(Library)
             local h, s, v = Color3.toHSV(cpObj.Value)
             local absPos = preview.AbsolutePosition
 
+            local pickerW = 200
+            local pickerH = 180
             pickerFrame = Create("Frame", {
                 Name = "PickerPopup_" .. flag,
-                Size = UDim2.new(0, 180, 0, 170),
-                Position = UDim2.new(0, absPos.X - 160, 0, absPos.Y + 24),
+                Size = UDim2.new(0, pickerW, 0, pickerH),
+                Position = UDim2.new(0, absPos.X, 0, absPos.Y + 22),
                 BackgroundColor3 = lib.Theme.Background,
                 BorderSizePixel = 0,
                 ZIndex = 100,
@@ -1178,6 +1228,8 @@ function Elements:Setup(Library)
                 Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
                 Create("UIStroke", { Color = lib.Theme.Border, Thickness = 1 }),
             })
+
+            lib:_showClickCatcher()
 
             Create("TextLabel", {
                 Name = "Title",
@@ -1193,20 +1245,35 @@ function Elements:Setup(Library)
                 Parent = pickerFrame,
             })
 
-            local svField = Create("ImageLabel", {
+            -- SV Field: background = pure hue color
+            -- White gradient left-to-right (saturation)
+            -- Black gradient top-to-bottom (value, inverted)
+            local svField = Create("Frame", {
                 Name = "SVField",
-                Size = UDim2.new(0, 132, 0, 90),
+                Size = UDim2.new(0, 148, 0, 100),
                 Position = UDim2.new(0, 8, 0, 22),
                 BackgroundColor3 = Color3.fromHSV(h, 1, 1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
+                ClipsDescendants = true,
                 Parent = pickerFrame,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            })
+
+            -- White overlay (left = white, right = transparent)
+            Create("Frame", {
+                Name = "WhiteOverlay",
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BorderSizePixel = 0,
+                ZIndex = 102,
+                Parent = svField,
+            }, {
                 Create("UIGradient", {
                     Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
-                        ColorSequenceKeypoint.new(1, Color3.new(1,1,1)),
+                        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+                        ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
                     }),
                     Transparency = NumberSequence.new({
                         NumberSequenceKeypoint.new(0, 0),
@@ -1215,15 +1282,15 @@ function Elements:Setup(Library)
                 }),
             })
 
+            -- Black overlay (bottom = black, top = transparent)
             Create("Frame", {
                 Name = "BlackOverlay",
                 Size = UDim2.new(1, 0, 1, 0),
                 BackgroundColor3 = Color3.new(0, 0, 0),
                 BorderSizePixel = 0,
-                ZIndex = 102,
+                ZIndex = 103,
                 Parent = svField,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
                 Create("UIGradient", {
                     Rotation = 90,
                     Transparency = NumberSequence.new({
@@ -1238,7 +1305,7 @@ function Elements:Setup(Library)
                 Position = UDim2.new(s, -4, 1-v, -4),
                 BackgroundColor3 = Color3.new(1,1,1),
                 BorderSizePixel = 0,
-                ZIndex = 103,
+                ZIndex = 104,
                 Parent = svField,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
@@ -1247,8 +1314,8 @@ function Elements:Setup(Library)
 
             local hueBar = Create("Frame", {
                 Name = "HueBar",
-                Size = UDim2.new(0, 16, 0, 90),
-                Position = UDim2.new(0, 148, 0, 22),
+                Size = UDim2.new(0, 16, 0, 100),
+                Position = UDim2.new(0, 164, 0, 22),
                 BackgroundColor3 = Color3.new(1,1,1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
@@ -1283,7 +1350,7 @@ function Elements:Setup(Library)
 
             local hexBox = Create("TextBox", {
                 Size = UDim2.new(1, -16, 0, 22),
-                Position = UDim2.new(0, 8, 0, 118),
+                Position = UDim2.new(0, 8, 0, 128),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
                 Text = "#" .. cpObj.Value:ToHex(),
@@ -1301,7 +1368,7 @@ function Elements:Setup(Library)
 
             local closeBtn = Create("TextButton", {
                 Size = UDim2.new(1, -16, 0, 18),
-                Position = UDim2.new(0, 8, 0, 144),
+                Position = UDim2.new(0, 8, 0, 154),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
                 Text = "Close",

@@ -50,40 +50,22 @@ ThemeManager.BuiltInThemes["Light"] = {
     Border           = Color3.fromRGB(190, 190, 190),
 }
 
-ThemeManager.BuiltInThemes["Mocha"] = {
-    Background       = Color3.fromRGB(30, 30, 46),
-    TitleBar         = Color3.fromRGB(24, 24, 37),
-    TabBackground    = Color3.fromRGB(27, 27, 40),
-    TabActive        = Color3.fromRGB(45, 45, 60),
-    TabInactive      = Color3.fromRGB(27, 27, 40),
-    GroupboxBg       = Color3.fromRGB(24, 24, 37),
-    ElementBg        = Color3.fromRGB(49, 50, 68),
-    ElementBorder    = Color3.fromRGB(69, 71, 90),
-    FontPrimary      = Color3.fromRGB(205, 214, 244),
-    FontSecondary    = Color3.fromRGB(147, 153, 178),
-    Accent           = Color3.fromRGB(137, 180, 250),
-    ToggleOn         = Color3.fromRGB(137, 180, 250),
-    ToggleOff        = Color3.fromRGB(49, 50, 68),
-    SliderFill       = Color3.fromRGB(137, 180, 250),
-    Border           = Color3.fromRGB(69, 71, 90),
-}
-
-ThemeManager.BuiltInThemes["Dracula"] = {
-    Background       = Color3.fromRGB(40, 42, 54),
-    TitleBar         = Color3.fromRGB(33, 34, 44),
-    TabBackground    = Color3.fromRGB(36, 38, 48),
-    TabActive        = Color3.fromRGB(55, 57, 70),
-    TabInactive      = Color3.fromRGB(36, 38, 48),
-    GroupboxBg       = Color3.fromRGB(33, 34, 44),
-    ElementBg        = Color3.fromRGB(68, 71, 90),
-    ElementBorder    = Color3.fromRGB(98, 114, 164),
-    FontPrimary      = Color3.fromRGB(248, 248, 242),
-    FontSecondary    = Color3.fromRGB(188, 188, 178),
-    Accent           = Color3.fromRGB(189, 147, 249),
-    ToggleOn         = Color3.fromRGB(189, 147, 249),
-    ToggleOff        = Color3.fromRGB(68, 71, 90),
-    SliderFill       = Color3.fromRGB(189, 147, 249),
-    Border           = Color3.fromRGB(98, 114, 164),
+ThemeManager.BuiltInThemes["Dark"] = {
+    Background       = Color3.fromRGB(15, 15, 15),
+    TitleBar         = Color3.fromRGB(18, 18, 18),
+    TabBackground    = Color3.fromRGB(20, 20, 20),
+    TabActive        = Color3.fromRGB(30, 30, 30),
+    TabInactive      = Color3.fromRGB(20, 20, 20),
+    GroupboxBg       = Color3.fromRGB(18, 18, 18),
+    ElementBg        = Color3.fromRGB(28, 28, 28),
+    ElementBorder    = Color3.fromRGB(40, 40, 40),
+    FontPrimary      = Color3.fromRGB(210, 210, 210),
+    FontSecondary    = Color3.fromRGB(140, 140, 140),
+    Accent           = Color3.fromRGB(96, 105, 255),
+    ToggleOn         = Color3.fromRGB(96, 105, 255),
+    ToggleOff        = Color3.fromRGB(40, 40, 40),
+    SliderFill       = Color3.fromRGB(96, 105, 255),
+    Border           = Color3.fromRGB(35, 35, 35),
 }
 
 -- ============================================================
@@ -99,12 +81,7 @@ function ThemeManager:SetFolder(folder)
 end
 
 function ThemeManager:GetThemes()
-    local names = {}
-    for name in pairs(self.BuiltInThemes) do
-        table.insert(names, name)
-    end
-    table.sort(names)
-    return names
+    return {"Default", "Dark", "Light"}
 end
 
 function ThemeManager:SetTheme(name)
@@ -213,24 +190,29 @@ function ThemeManager:ApplyToTab(tab)
         self:SetTheme(getgenv().Options.ThemeSelector.Value)
     end)
 
-    -- Color pickers for each theme key
-    local colorKeys = {
-        "Accent", "Background", "TitleBar", "GroupboxBg", "ElementBg",
-        "ElementBorder", "FontPrimary", "FontSecondary", "Border",
+    -- Simplified color pickers (6 categories)
+    local colorMap = {
+        { label = "Background Color", keys = {"Background", "GroupboxBg"} },
+        { label = "Main Color", keys = {"TitleBar", "TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { label = "Accent Color", keys = {"Accent", "ToggleOn", "SliderFill"} },
+        { label = "Outline Color", keys = {"Border", "ElementBorder"} },
+        { label = "Font Color", keys = {"FontPrimary"} },
+        { label = "Subtext Font Color", keys = {"FontSecondary"} },
     }
 
-    for _, key in ipairs(colorKeys) do
-        local cpFlag = "ThemeColor_" .. key
-        left:AddLabel(key):AddColorPicker(cpFlag, {
-            Default = lib.Theme[key],
-            Title = key .. " Color",
+    for i, entry in ipairs(colorMap) do
+        local cpFlag = "ThemeColor_" .. i
+        local firstKey = entry.keys[1]
+        left:AddLabel(entry.label):AddColorPicker(cpFlag, {
+            Default = lib.Theme[firstKey],
+            Title = entry.label,
         })
 
         getgenv().Options[cpFlag]:OnChanged(function(color)
-            lib.Theme[key] = color
-            if key == "Accent" then
-                lib.Theme.ToggleOn = color
-                lib.Theme.SliderFill = color
+            for _, key in ipairs(entry.keys) do
+                lib.Theme[key] = color
+            end
+            if entry.keys[1] == "Accent" then
                 lib.AccentColor = color
             end
             self:_applyThemeToGui()
@@ -296,6 +278,17 @@ function ThemeManager:ApplyToTab(tab)
         if lib.KeybindFrame then
             lib.KeybindFrame.Visible = getgenv().Toggles.ShowKeybindFrame.Value
         end
+    end)
+
+    -- Keybind list filter
+    left:AddDropdown("KeybindListFilter", {
+        Values = {"Show All", "Active Only"},
+        Default = 1,
+        Text = "Keybind List Filter",
+    })
+
+    getgenv().Options.KeybindListFilter:OnChanged(function()
+        lib._keybindFilterActive = (getgenv().Options.KeybindListFilter.Value == "Active Only")
     end)
 end
 

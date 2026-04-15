@@ -134,6 +134,15 @@ function Library:ClosePopups()
         self._openPopup = nil
         if popup.Close then popup:Close() end
     end
+    if self._popupClickCatcher then
+        self._popupClickCatcher.Visible = false
+    end
+end
+
+function Library:_showClickCatcher()
+    if self._popupClickCatcher then
+        self._popupClickCatcher.Visible = true
+    end
 end
 
 -- ============================================================
@@ -261,7 +270,7 @@ function Library:CreateWatermark()
             AutomaticSize = Enum.AutomaticSize.X,
             BackgroundTransparency = 1,
             Text = "",
-            TextColor3 = self.Theme.FontPrimary,
+            TextColor3 = self.Theme.FontSecondary,
             FontFace = self.FontRegular,
             TextSize = 12,
         }),
@@ -321,7 +330,7 @@ function Library:CreateKeybindFrame()
             Position = UDim2.new(0, 4, 0, 3),
             BackgroundTransparency = 1,
             Text = "Keybinds",
-            TextColor3 = self.Theme.FontPrimary,
+            TextColor3 = self.Theme.FontSecondary,
             TextSize = 13,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -358,9 +367,11 @@ function Library:UpdateKeybindFrame()
     end
 
     local count = 0
+    local showAll = not (self._keybindFilterActive)
     local opts = getgenv().Options or {}
     for flag, opt in pairs(opts) do
         if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
+            if not showAll and not opt._isActive then continue end
             count = count + 1
             local modeStr = opt.Mode or "Toggle"
             local stateStr = ""
@@ -383,8 +394,8 @@ function Library:UpdateKeybindFrame()
                 Size = UDim2.new(0.6, 0, 1, 0),
                 BackgroundTransparency = 1,
                 Text = (opt.Text or flag) .. stateStr,
-                TextColor3 = opt._isActive and self.Theme.Accent or self.Theme.FontSecondary,
-                FontFace = opt._isActive and self.FontSemiBold or self.FontRegular,
+                TextColor3 = self.Theme.FontSecondary,
+                FontFace = self.FontRegular,
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = entry,
@@ -417,8 +428,8 @@ function Library:CreateWindow(options)
     local title = options.Title or "JopLib"
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
-    local windowWidth = options.Width or 620
-    local windowHeight = options.Height or 460
+    local windowWidth = options.Width or 700
+    local windowHeight = options.Height or 500
     local tabPadding = options.TabPadding or 8
 
     if self.ScreenGui then
@@ -442,6 +453,21 @@ function Library:CreateWindow(options)
         Parent = screenGui,
     })
     self._popupHolder = popupHolder
+
+    -- Close popups on click outside
+    local popupClickCatcher = Create("TextButton", {
+        Name = "PopupClickCatcher",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 99,
+        Visible = false,
+        Parent = screenGui,
+    })
+    popupClickCatcher.MouseButton1Click:Connect(function()
+        Library:ClosePopups()
+    end)
+    self._popupClickCatcher = popupClickCatcher
 
     local windowPos
     if center then
@@ -709,6 +735,10 @@ function Library:CreateWindow(options)
                     PaddingBottom = UDim.new(0, 6),
                     PaddingLeft = UDim.new(0, 6),
                     PaddingRight = UDim.new(0, 6),
+                }),
+                Create("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4),
                 }),
             })
 
