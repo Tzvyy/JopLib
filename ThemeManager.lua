@@ -209,7 +209,7 @@ function ThemeManager:_getThemesFolder()
 end
 
 function ThemeManager:_getAutoloadPath()
-    return self:_getBaseFolder() .. "/autoload_theme.txt"
+    return self:_getThemesFolder() .. "/autoload_theme.txt"
 end
 
 function ThemeManager:_ensureFolders()
