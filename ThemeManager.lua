@@ -199,11 +199,14 @@ function ThemeManager:_getCustomThemesFolder()
 end
 
 function ThemeManager:_ensureFolder()
-    local folder = self:_getCustomThemesFolder()
     pcall(function()
-        if typeof(isfolder) == "function" and not isfolder(folder) then makefolder(folder) end
+        if typeof(isfolder) == "function" then
+            if not isfolder(ThemeManager.Folder) then makefolder(ThemeManager.Folder) end
+            local sub = ThemeManager.Folder .. "/themes"
+            if not isfolder(sub) then makefolder(sub) end
+        end
     end)
-    return folder
+    return self:_getCustomThemesFolder()
 end
 
 function ThemeManager:_listCustomThemes()
@@ -416,14 +419,18 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     })
 
     getgenv().Toggles.AutoLoadTheme:OnChanged(function(val)
+        if ThemeManager._loadingAutoTheme then return end
         local folder = ThemeManager:_ensureFolder()
         pcall(function()
             if val then
-                -- Save which theme is currently selected
-                local builtIn = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
-                writefile(folder .. "/autoload.txt", builtIn)
+                local themeName = getgenv().Options.ThemeSelector and getgenv().Options.ThemeSelector.Value or "Default"
+                writefile(folder .. "/autoload.txt", themeName)
             else
-                pcall(function() delfile(folder .. "/autoload.txt") end)
+                if typeof(delfile) == "function" then
+                    pcall(function() delfile(folder .. "/autoload.txt") end)
+                else
+                    pcall(function() writefile(folder .. "/autoload.txt", "") end)
+                end
             end
         end)
     end)
@@ -490,7 +497,9 @@ end
 function ThemeManager:LoadAutoloadTheme()
     local folder = self:_getCustomThemesFolder()
     local ok, content = pcall(function() return readfile(folder .. "/autoload.txt") end)
-    if not ok or not content or content == "" then return end
+    if not ok or not content then return end
+    content = content:match("^%s*(.-)%s*$") or ""
+    if content == "" then return end
 
     -- Try built-in theme first
     if self.BuiltInThemes[content] then
@@ -503,10 +512,12 @@ function ThemeManager:LoadAutoloadTheme()
         self:LoadCustomTheme(content)
     end
 
-    -- Enable the toggle
+    -- Enable the toggle without triggering a re-save
+    self._loadingAutoTheme = true
     if getgenv().Toggles.AutoLoadTheme then
         getgenv().Toggles.AutoLoadTheme:SetValue(true)
     end
+    self._loadingAutoTheme = false
 end
 
 return ThemeManager

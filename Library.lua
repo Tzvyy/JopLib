@@ -189,8 +189,8 @@ function Library:Notify(text, duration)
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 5),
-            Position = UDim2.new(0, 0, 0, 7),
+            Size = UDim2.new(1, 0, 0, 6),
+            Position = UDim2.new(0, 0, 0, 9),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -257,8 +257,8 @@ function Library:CreateWatermark()
         }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 16, 0, 5),
-            Position = UDim2.new(0, -8, 0, 7),
+            Size = UDim2.new(1, 16, 0, 6),
+            Position = UDim2.new(0, -8, 0, 9),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
@@ -319,8 +319,8 @@ function Library:CreateKeybindFrame()
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(1, 0, 0, 5),
-            Position = UDim2.new(0, 0, 0, 7),
+            Size = UDim2.new(1, 0, 0, 6),
+            Position = UDim2.new(0, 0, 0, 9),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }),
