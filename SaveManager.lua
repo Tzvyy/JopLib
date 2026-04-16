@@ -374,8 +374,6 @@ function SaveManager:BuildConfigSection(tab)
         end,
     })
 
-    right:AddDivider()
-
     -- Set as autoload button + label (LinoriaLib style)
     right:AddButton({
         Text = "Set as autoload",
