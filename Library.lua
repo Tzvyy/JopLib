@@ -407,8 +407,8 @@ function Library:CreateWindow(options)
     local title = options.Title or "JopLib"
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
-    local windowWidth = options.Width or 700
-    local windowHeight = options.Height or 500
+    local windowWidth = options.Width or 850
+    local windowHeight = options.Height or 550
     local tabPadding = options.TabPadding or 8
 
     if self.ScreenGui then
