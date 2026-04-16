@@ -186,6 +186,35 @@ function ThemeManager:_applyThemeToGui()
             end
         end
     end
+
+    -- Deferred re-apply to catch any tweens from config autoload that may override colors
+    task.delay(0.2, function()
+        self:_refreshElementColors()
+    end)
+end
+
+-- Re-applies theme colors directly to toggle/slider objects (bypasses tweens)
+function ThemeManager:_refreshElementColors()
+    local lib = self.Library
+    if not lib then return end
+    local theme = lib.Theme
+
+    -- Fix toggle box colors
+    for _, toggle in pairs(getgenv().Toggles or {}) do
+        if toggle._box then
+            toggle._box.BackgroundColor3 = toggle.Value and theme.ToggleOn or theme.ToggleOff
+        end
+    end
+
+    -- Fix slider fill colors
+    local gui = lib.ScreenGui
+    if gui then
+        for _, desc in ipairs(gui:GetDescendants()) do
+            if desc:IsA("Frame") and desc.Name == "Fill" then
+                desc.BackgroundColor3 = theme.SliderFill
+            end
+        end
+    end
 end
 
 function ThemeManager:_getBaseFolder()
