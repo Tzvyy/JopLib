@@ -703,7 +703,7 @@ function Library:CreateWindow(options)
     local accentLine = Create("Frame", {
         Name = "AccentLine",
         Size = UDim2.new(1, 0, 0, 2),
-        Position = UDim2.new(0, 0, 1, 0),
+        Position = UDim2.new(0, 0, 1, -1),
         BackgroundColor3 = self.Theme.Accent,
         BorderSizePixel = 0,
         Parent = titleBar,
