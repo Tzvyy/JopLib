@@ -33,7 +33,6 @@ end
 function SaveManager:IgnoreThemeSettings()
     self.IgnoreTheme = true
     self.IgnoreIndexes["ThemeSelector"] = true
-    self.IgnoreIndexes["AutoLoadTheme"] = true
     self.IgnoreIndexes["ShowWatermark"] = true
     self.IgnoreIndexes["ShowKeybindFrame"] = true
     for key, _ in pairs(self.Library and self.Library.Theme or {}) do

@@ -309,17 +309,6 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
-        -- Skip saving if we're in the middle of loading autoload theme
-        if ThemeManager._loadingAutoTheme then return end
-        local autoToggle = getgenv().Toggles.AutoLoadTheme
-        if autoToggle then
-            -- Always update the display text
-            autoToggle:SetValueText(val)
-            if autoToggle.Value then
-                -- Save the new theme as autoload
-                ThemeManager:_saveAutoloadSilent(val)
-            end
-        end
     end)
 
     -- Color pickers
@@ -512,9 +501,19 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end,
     })
 
-    right:AddDivider()
+    -- Set as autoload button + label
+    right:AddButton({
+        Text = "Set as autoload",
+        Func = function()
+            local themeName = ThemeManager._currentThemeName or "Default"
+            ThemeManager:_saveAutoloadSilent(themeName)
+            if lib.Notify then lib:Notify(string.format("Set %q to auto load", themeName)) end
+            if ThemeManager.AutoloadLabel then
+                ThemeManager.AutoloadLabel:SetText("Current autoload theme: " .. themeName)
+            end
+        end,
+    })
 
-    -- Auto-load theme toggle
     local currentAutoTheme = "none"
     pcall(function()
         if typeof(isfile) == "function" and isfile(ThemeManager:_getAutoloadPath()) then
@@ -525,38 +524,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             end
         end
     end)
-
-    right:AddToggle("AutoLoadTheme", {
-        Text = "Auto-load Theme",
-        Default = false,
-    })
-
-    -- Show the saved theme name next to the toggle
-    if currentAutoTheme ~= "none" and getgenv().Toggles.AutoLoadTheme then
-        getgenv().Toggles.AutoLoadTheme:SetValueText(currentAutoTheme)
-    end
-
-    getgenv().Toggles.AutoLoadTheme:OnChanged(function()
-        -- Skip if we're in the middle of loading autoload theme
-        if ThemeManager._loadingAutoTheme then return end
-
-        if getgenv().Toggles.AutoLoadTheme.Value then
-            -- Enabling auto-load: save current theme
-            local themeName = ThemeManager._currentThemeName or "Default"
-            ThemeManager:_saveAutoloadSilent(themeName)
-            getgenv().Toggles.AutoLoadTheme:SetValueText(themeName)
-            if lib.Notify then lib:Notify(string.format("Auto-load theme set to %q", themeName)) end
-        else
-            -- Disabling auto-load: delete the autoload file
-            pcall(function()
-                if typeof(delfile) == "function" then
-                    delfile(ThemeManager:_getAutoloadPath())
-                end
-            end)
-            getgenv().Toggles.AutoLoadTheme:SetValueText("")
-            if lib.Notify then lib:Notify("Auto-load theme disabled") end
-        end
-    end)
+    ThemeManager.AutoloadLabel = right:AddLabel("Current autoload theme: " .. currentAutoTheme, true)
 
     -- ── Menu toggles (added to existing Menu groupbox if provided) ──
     local menu = menuGroupbox or tab:AddLeftGroupbox("Menu")
@@ -696,10 +664,9 @@ function ThemeManager:LoadAutoloadTheme()
             self:LoadCustomTheme(content)
         end
 
-        -- Enable the toggle (guard prevents OnChanged from re-saving)
-        if getgenv().Toggles.AutoLoadTheme then
-            getgenv().Toggles.AutoLoadTheme:SetValue(true)
-            getgenv().Toggles.AutoLoadTheme:SetValueText(content)
+        -- Update the autoload label
+        if ThemeManager.AutoloadLabel then
+            ThemeManager.AutoloadLabel:SetText("Current autoload theme: " .. content)
         end
 
         self._loadingAutoTheme = false
