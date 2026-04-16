@@ -408,7 +408,7 @@ function Library:CreateWindow(options)
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
     local windowWidth = options.Width or 850
-    local windowHeight = options.Height or 550
+    local windowHeight = options.Height or 650
     local tabPadding = options.TabPadding or 8
 
     if self.ScreenGui then
