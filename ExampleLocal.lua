@@ -191,11 +191,11 @@ end)
 task.spawn(function()
     while true do
         wait(1)
+        if Library.Unloaded then break end
         local state = Options.KeyPicker:GetState()
         if state then
             print("KeyPicker is being held down")
         end
-        if Library.Unloaded then break end
     end
 end)
 
