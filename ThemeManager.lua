@@ -360,17 +360,10 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     })
 
     getgenv().Options.CustomThemeList:OnChanged(function(val)
+        -- Just update the name input to match selection; user clicks "Load theme" to apply
         if not val or val == "" then return end
-        if ThemeManager:LoadCustomTheme(val) then
-            -- Skip autoload save if we're loading from autoload
-            if ThemeManager._loadingAutoTheme then return end
-            local autoToggle = getgenv().Toggles.AutoLoadTheme
-            if autoToggle then
-                autoToggle:SetValueText(val)
-                if autoToggle.Value then
-                    ThemeManager:_saveAutoloadSilent(val)
-                end
-            end
+        if getgenv().Options.CustomThemeName then
+            getgenv().Options.CustomThemeName:SetValue(val)
         end
     end)
 
