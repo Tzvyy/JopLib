@@ -24,9 +24,24 @@ local function Create(class, props, children)
     return inst
 end
 
+local TweenInfoCache = {}
 local function Tween(inst, props, duration)
     duration = duration or 0.15
-    return TweenService:Create(inst, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+    local cached = TweenInfoCache[duration]
+    if not cached then
+        cached = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenInfoCache[duration] = cached
+    end
+    return TweenService:Create(inst, cached, props)
+end
+
+local function GetKeyName(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard then return input.KeyCode.Name
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then return "MB1"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then return "MB2"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton3 then return "MB3"
+    end
+    return nil
 end
 
 local Elements = {}
@@ -817,7 +832,6 @@ function Elements:Setup(Library)
                 buildItems()
                 lib._openPopup = popupObj
                 lib._openPopupTrigger = dropBtn
-                lib:_showClickCatcher()
 
                 -- Track dropdown position while scrolling
                 dropTrackConn = RunService.Heartbeat:Connect(function()
@@ -1145,20 +1159,13 @@ function Elements:Setup(Library)
 
             lib._openPopup = { Close = closeMenu }
             lib._openPopupTrigger = keyBtn
-            lib:_showClickCatcher()
         end)
 
         -- Key listening
         local inputConn = UserInputService.InputBegan:Connect(function(input, processed)
             if not listening then return end
             if processed then return end
-            local keyName
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
-            end
+            local keyName = GetKeyName(input)
             if keyName then
                 if keyName == "Escape" or keyName == "Backspace" then keyName = "None" end
                 listening = false
@@ -1172,12 +1179,7 @@ function Elements:Setup(Library)
         local holdConn = UserInputService.InputBegan:Connect(function(input, processed)
             if processed or listening then return end
             if kpObj.Value == "None" then return end
-            local keyName
-            if input.UserInputType == Enum.UserInputType.Keyboard then keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
-            end
+            local keyName = GetKeyName(input)
             if keyName == kpObj.Value then
                 if kpObj.Mode == "Toggle" then
                     kpObj._isActive = not kpObj._isActive
@@ -1196,12 +1198,7 @@ function Elements:Setup(Library)
 
         local holdEndConn = UserInputService.InputEnded:Connect(function(input)
             if kpObj.Value == "None" then return end
-            local keyName
-            if input.UserInputType == Enum.UserInputType.Keyboard then keyName = input.KeyCode.Name
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then keyName = "MB1"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then keyName = "MB2"
-            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then keyName = "MB3"
-            end
+            local keyName = GetKeyName(input)
             if keyName == kpObj.Value and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
                 if cbCallback then task.spawn(cbCallback, false) end
@@ -1405,7 +1402,6 @@ function Elements:Setup(Library)
 
             lib._openPopup = { Close = closeCtxMenu }
             lib._openPopupTrigger = previewBtn
-            lib:_showClickCatcher()
         end)
 
         previewBtn.MouseButton1Click:Connect(function()
@@ -1435,8 +1431,6 @@ function Elements:Setup(Library)
                 Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
                 Create("UIStroke", { Color = lib.Theme.Border, Thickness = 1 }),
             })
-
-            lib:_showClickCatcher()
 
             -- Keep picker attached to the preview box while scrolling
             pickerTrackConn = RunService.Heartbeat:Connect(function()

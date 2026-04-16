@@ -8,6 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
 
 -- ============================================================
 -- GLOBALS: Toggles / Options tables (like Linoria)
@@ -51,11 +52,22 @@ local function Create(class, props, children)
     return inst
 end
 
+local TweenInfoCache = {}
+local function GetTweenInfo(duration, style, dir)
+    local key = duration * 1000 + style.Value * 10 + dir.Value
+    local cached = TweenInfoCache[key]
+    if not cached then
+        cached = TweenInfo.new(duration, style, dir)
+        TweenInfoCache[key] = cached
+    end
+    return cached
+end
+
 local function Tween(inst, props, duration, style, dir)
     duration = duration or 0.2
     style = style or Enum.EasingStyle.Quad
     dir = dir or Enum.EasingDirection.Out
-    return TweenService:Create(inst, TweenInfo.new(duration, style, dir), props)
+    return TweenService:Create(inst, GetTweenInfo(duration, style, dir), props)
 end
 
 local function MakeDraggable(frame, handle)
@@ -124,7 +136,6 @@ Library.Flags = {}
 Library.Connections = {}
 Library._unloadCallbacks = {}
 Library._openPopup = nil
-Library.DebugLogs = false
 
 function Library:Log(...)
     if self.DebugLogs then
@@ -145,10 +156,6 @@ function Library:ClosePopups()
     end
 end
 
-function Library:_showClickCatcher()
-    -- No-op: we use InputBegan listener instead
-end
-
 -- ============================================================
 -- NOTIFICATION SYSTEM
 -- ============================================================
@@ -163,7 +170,7 @@ function Library:Notify(text, duration)
             Name = "JopLibNotifications",
             ResetOnSpawn = false,
             ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            Parent = game:GetService("CoreGui"),
+            Parent = CoreGui,
         })
         Create("Frame", {
             Name = "Holder",
@@ -235,7 +242,7 @@ function Library:CreateWatermark()
         Name = "JopLibWatermark",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = game:GetService("CoreGui"),
+        Parent = CoreGui,
     })
 
     local frame = Create("Frame", {
@@ -295,7 +302,7 @@ function Library:CreateKeybindFrame()
         Name = "JopLibKeybinds",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = game:GetService("CoreGui"),
+        Parent = CoreGui,
     })
 
     local frame = Create("Frame", {
@@ -425,7 +432,7 @@ function Library:CreateWindow(options)
         Name = "JopLib",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = game:GetService("CoreGui"),
+        Parent = CoreGui,
     })
     self.ScreenGui = screenGui
 
@@ -623,10 +630,14 @@ function Library:CreateWindow(options)
     end)
     table.insert(Library.Connections, toggleConn)
 
-    -- Keybind frame heartbeat
+    -- Keybind frame update (throttled to 5/sec)
     self:CreateKeybindFrame()
-    local kbConn = RunService.Heartbeat:Connect(function()
-        if not Library.Unloaded then
+    local kbTimer = 0
+    local kbConn = RunService.Heartbeat:Connect(function(dt)
+        if Library.Unloaded then return end
+        kbTimer = kbTimer + dt
+        if kbTimer >= 0.2 then
+            kbTimer = 0
             Library:UpdateKeybindFrame()
         end
     end)
@@ -978,6 +989,7 @@ function Library:CreateWindow(options)
             Window:SwitchTab(Tab)
         end)
 
+        Tab._tabBtn = tabBtn
         Window.Tabs[tabName] = Tab
 
         if Window.ActiveTab == nil then
@@ -990,24 +1002,20 @@ function Library:CreateWindow(options)
     function Window:SwitchTab(tab)
         for _, t in pairs(Window.Tabs) do
             t._page.Visible = false
-            local btn = tabBarScroll:FindFirstChild("Tab_" .. t.Name)
+            local btn = t._tabBtn
             if btn then
                 btn.BackgroundColor3 = Library.Theme.TabInactive
                 local label = btn:FindFirstChild("Label")
-                if label then
-                    label.TextColor3 = Library.Theme.FontSecondary
-                end
+                if label then label.TextColor3 = Library.Theme.FontSecondary end
             end
         end
 
         tab._page.Visible = true
-        local btn = tabBarScroll:FindFirstChild("Tab_" .. tab.Name)
+        local btn = tab._tabBtn
         if btn then
             btn.BackgroundColor3 = Library.Theme.TabActive
             local label = btn:FindFirstChild("Label")
-            if label then
-                label.TextColor3 = Library.Theme.FontPrimary
-            end
+            if label then label.TextColor3 = Library.Theme.FontPrimary end
         end
 
         Window.ActiveTab = tab
