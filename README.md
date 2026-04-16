@@ -147,6 +147,7 @@ Options.SpeedKey.Mode        -- current mode
 Left:AddLabel("Box Color"):AddColorPicker("BoxColor", {
     Default = Color3.fromRGB(255, 0, 0),
     Title = "Box Color",
+    Transparency = 0,  -- optional, 0 = opaque, 1 = fully transparent
 })
 
 -- Chained onto a toggle
@@ -156,7 +157,22 @@ Left:AddToggle("ShowBox", { Text = "Show Box" }):AddColorPicker("BoxColor", {
 
 Options.BoxColor:OnChanged(function(color) print(color) end)
 Options.BoxColor:SetValue(Color3.fromRGB(0, 255, 0))
+Options.BoxColor:SetValue(Color3.fromRGB(0, 255, 0), 0.5)  -- with transparency
+Options.BoxColor.Value         -- current Color3
+Options.BoxColor.Transparency  -- current transparency (0-1)
 ```
+
+**Color Picker Features:**
+- Large saturation/value field with hue bar
+- Editable HEX input (e.g. `#00baff`)
+- Editable RGB input (e.g. `0, 186, 255`)
+- Transparency slider with checkerboard preview
+- Opacity reflects on the preview swatch
+- **Right-click** the color swatch to:
+  - **Copy color** — stores color + transparency internally
+  - **Paste color** — applies a previously copied color
+  - **Copy HEX** — copies hex to clipboard (e.g. `#ff0000`)
+  - **Copy RGB** — copies RGB to clipboard (e.g. `255, 0, 0`)
 
 ### Label & Divider
 ```lua
@@ -202,18 +218,20 @@ ThemeManager:SetTheme("Default")  -- programmatic switch
 
 Built-in themes: **Default**, **Dark**, **Light**
 
-Custom themes can be saved/loaded/deleted via the UI. Use "Set as autoload" to auto-apply on startup.
+Custom themes can be saved/loaded/deleted via the UI. Delete requires a confirmation click. Use "Set as autoload" to auto-apply on startup.
 
 ## SaveManager
 ```lua
 SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-SaveManager:BuildConfigSection(Tabs.Settings)  -- adds config UI
+SaveManager:IgnoreThemeSettings()               -- prevent theme colors from leaking into configs
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" }) -- ignore specific flags
+SaveManager:BuildConfigSection(Tabs.Settings)   -- adds config UI
 SaveManager:LoadAutoloadConfig()
 ```
 
-Config section provides: Save, Load, Overwrite, Delete, Refresh, and Set as autoload.
+Config UI provides: **Save**, **Load**, **Overwrite**, **Delete** (with confirmation), **Refresh**, and **Set as autoload**.
+
+ShowWatermark and ShowKeybindFrame toggles are saved with configs (not ignored by `IgnoreThemeSettings`).
 
 ## Notifications
 ```lua
@@ -244,11 +262,23 @@ Uses **Inter** font family via `FontFace`. Change in `Library.lua`:
 local FontFamily = "rbxasset://fonts/families/Inter.json"
 ```
 
-## File Structure
+## File Storage
+All data is stored in the executor's workspace under `JopLib/`:
+```
+JopLib/
+├── configs/              — saved user configurations
+│   ├── autoload.txt      — name of config to auto-load
+│   └── *.json            — individual config files
+└── themes/               — custom theme storage
+    ├── autoload.txt      — name of theme to auto-load
+    └── *.json            — individual custom theme files
+```
+
+## Source Files
 ```
 JopLib/
 ├── Library.lua        — Core window, tabs, groupboxes, layout
-├── Elements.lua       — All UI elements
+├── Elements.lua       — All UI elements (toggle, slider, dropdown, color picker, etc.)
 ├── ThemeManager.lua   — Theme system with built-in + custom themes
 ├── SaveManager.lua    — Config save/load system
 ├── Example.lua        — Demo script (loads from GitHub)
