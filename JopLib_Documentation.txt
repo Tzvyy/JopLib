@@ -389,19 +389,19 @@ EXAMPLE SETUP (from Example.lua)
   -- 2. Create tabs
   local Tabs = {
       Main = Window:AddTab("Main"),
-      ["UI Settings"] = Window:AddTab("UI Settings"),
+      ["GUI Settings"] = Window:AddTab("GUI Settings"),
   }
 
   -- 3. Add Menu groupbox
-  local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+  local MenuGroup = Tabs["GUI Settings"]:AddLeftGroupbox("Menu")
   MenuGroup:AddButton({Text="Unload", Func=function() Library:Unload() end})
   MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
       Default = "End", NoUI = true
   })
 
   -- 4. Connect managers
-  SaveManager:BuildConfigSection(Tabs["UI Settings"])  -- Creates Config UI
-  ThemeManager:ApplyToTab(Tabs["UI Settings"], MenuGroup)  -- Creates Theme UI
+  SaveManager:BuildConfigSection(Tabs["GUI Settings"])  -- Creates Config UI
+  ThemeManager:ApplyToTab(Tabs["GUI Settings"], MenuGroup)  -- Creates Theme UI
 
   -- 5. Load auto-saved settings
   SaveManager:LoadAutoloadConfig()

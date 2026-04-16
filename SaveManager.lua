@@ -36,6 +36,7 @@ function SaveManager:IgnoreThemeSettings()
     self.IgnoreIndexes["KeybindListFilter"] = true
     self.IgnoreIndexes["CustomThemeName"] = true
     self.IgnoreIndexes["CustomThemeList"] = true
+    self.IgnoreIndexes["GUIDebugLogs"] = true
     -- Color picker flags are numbered 1-6 (matching ThemeManager:ApplyToTab)
     for i = 1, 6 do
         self.IgnoreIndexes["ThemeColor_" .. i] = true

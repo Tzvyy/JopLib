@@ -66,6 +66,9 @@ function Elements:Setup(Library)
             if self._box then
                 Tween(self._box, {BackgroundColor3 = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff}, 0.15):Play()
             end
+            if lib.DebugLogs then
+                print("[JopLib] Toggle '", flag, "' set to:", val)
+            end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
             if callback then task.spawn(callback, val) end
         end
@@ -253,6 +256,9 @@ function Elements:Setup(Library)
                 else
                     self._valueLabel.Text = tostring(val) .. " / " .. tostring(max) .. suffix
                 end
+            end
+            if lib.DebugLogs then
+                print("[JopLib] Slider '", flag, "' set to:", val)
             end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
             if callback then task.spawn(callback, val) end
@@ -623,6 +629,9 @@ function Elements:Setup(Library)
                 self.Value = val
             end
             if self._displayLabel then self._displayLabel.Text = getDisplayText() end
+            if lib.DebugLogs then
+                print("[JopLib] Dropdown '", flag, "' set to:", tostring(self.Value))
+            end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
             if callback then task.spawn(callback, self.Value) end
         end
@@ -861,6 +870,9 @@ function Elements:Setup(Library)
         function inputObj:SetValue(val)
             self.Value = val
             if self._textBox then self._textBox.Text = tostring(val) end
+            if lib.DebugLogs then
+                print("[JopLib] Input '", flag, "' set to:", tostring(val))
+            end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
             if callback then task.spawn(callback, val) end
         end

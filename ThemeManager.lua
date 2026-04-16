@@ -167,7 +167,7 @@ function ThemeManager:_applyThemeToGui()
                 desc.BackgroundColor3 = theme.ElementBg
                 desc.TextColor3 = theme.FontPrimary
             elseif name:find("^Tab_") then
-                -- Main tabs (Tab_Main, Tab_UI Settings, etc.)
+                -- Main tabs (Tab_Main, Tab_GUI Settings, etc.)
                 local isActive = desc.BackgroundColor3 ~= theme.TabInactive
                 desc.BackgroundColor3 = theme.TabActive
             elseif name:find("^TBTab_") then
@@ -185,6 +185,24 @@ function ThemeManager:_applyThemeToGui()
                 desc.ScrollBarImageColor3 = theme.Accent
             end
         end
+    end
+
+    -- Update watermark background to match theme
+    if lib._watermarkFrame then
+        lib._watermarkFrame.BackgroundColor3 = theme.Background
+        local wmStroke = lib._watermarkFrame:FindFirstChildOfClass("UIStroke")
+        if wmStroke then wmStroke.Color = theme.Border end
+        local wmText = lib._watermarkFrame:FindFirstChild("Text", true)
+        if wmText then wmText.TextColor3 = theme.FontSecondary end
+    end
+
+    -- Update keybind frame background to match theme
+    if lib._keybindFrame then
+        lib._keybindFrame.BackgroundColor3 = theme.Background
+        local kfStroke = lib._keybindFrame:FindFirstChildOfClass("UIStroke")
+        if kfStroke then kfStroke.Color = theme.Border end
+        local kfTitle = lib._keybindFrame:FindFirstChild("Title", true)
+        if kfTitle then kfTitle.TextColor3 = theme.FontSecondary end
     end
 
     -- Deferred re-apply to catch any tweens from config autoload that may override colors
@@ -586,6 +604,15 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     -- ── Menu toggles (added to existing Menu groupbox if provided) ──
     local menu = menuGroupbox or tab:AddLeftGroupbox("Menu")
+
+    menu:AddToggle("GUIDebugLogs", {
+        Text = "GUI Debug Logs",
+        Default = false,
+    })
+
+    getgenv().Toggles.GUIDebugLogs:OnChanged(function()
+        lib.DebugLogs = getgenv().Toggles.GUIDebugLogs.Value
+    end)
 
     menu:AddToggle("ShowWatermark", {
         Text = "Show Watermark",

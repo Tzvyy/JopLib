@@ -99,6 +99,7 @@ Library.FontRegular = Fonts.Regular
 Library.FontSemiBold = Fonts.SemiBold
 Library.FontBold = Fonts.Bold
 Library.Unloaded = false
+Library.DebugLogs = false
 
 Library.Theme = {
     Background       = Color3.fromRGB(20, 20, 20),
@@ -685,6 +686,12 @@ function Library:CreateWindow(options)
                 SortOrder = Enum.SortOrder.LayoutOrder,
                 Padding = UDim.new(0, 6),
             }),
+            Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 2),
+                PaddingTop = UDim.new(0, 2),
+                PaddingBottom = UDim.new(0, 2),
+            }),
         })
 
         local rightColumn = Create("ScrollingFrame", {
@@ -704,6 +711,12 @@ function Library:CreateWindow(options)
             Create("UIListLayout", {
                 SortOrder = Enum.SortOrder.LayoutOrder,
                 Padding = UDim.new(0, 6),
+            }),
+            Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 2),
+                PaddingTop = UDim.new(0, 2),
+                PaddingBottom = UDim.new(0, 2),
             }),
         })
 

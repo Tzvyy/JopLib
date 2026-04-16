@@ -21,7 +21,7 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Main = Window:AddTab("Main"),
-    ["UI Settings"] = Window:AddTab("UI Settings"),
+    ["GUI Settings"] = Window:AddTab("GUI Settings"),
 }
 
 -- ============================================================
@@ -245,7 +245,7 @@ SubDepbox:SetupDependencies({
 })
 
 -- ============================================================
--- WATERMARK (hidden by default, toggle in UI Settings)
+-- WATERMARK (hidden by default, toggle in GUI Settings)
 -- ============================================================
 
 Library:SetWatermarkVisibility(false)
@@ -270,7 +270,7 @@ local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(
 end)
 
 -- ============================================================
--- KEYBIND FRAME (hidden by default, toggle in UI Settings)
+-- KEYBIND FRAME (hidden by default, toggle in GUI Settings)
 -- ============================================================
 
 Library.KeybindFrame.Visible = false
@@ -289,7 +289,7 @@ end)
 -- UI SETTINGS TAB
 -- ============================================================
 
-local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+local MenuGroup = Tabs["GUI Settings"]:AddLeftGroupbox("Menu")
 
 MenuGroup:AddButton({
     Text = "Unload",
@@ -311,8 +311,8 @@ Library.ToggleKeybind = Options.MenuKeybind
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
 
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-ThemeManager:ApplyToTab(Tabs["UI Settings"], MenuGroup)
+SaveManager:BuildConfigSection(Tabs["GUI Settings"])
+ThemeManager:ApplyToTab(Tabs["GUI Settings"], MenuGroup)
 
 SaveManager:LoadAutoloadConfig()
 ThemeManager:LoadAutoloadTheme()
