@@ -688,7 +688,7 @@ function Library:CreateWindow(options)
             }),
             Create("UIPadding", {
                 PaddingLeft = UDim.new(0, 2),
-                PaddingRight = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 2),
                 PaddingBottom = UDim.new(0, 2),
             }),
@@ -714,7 +714,7 @@ function Library:CreateWindow(options)
             }),
             Create("UIPadding", {
                 PaddingLeft = UDim.new(0, 2),
-                PaddingRight = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 2),
                 PaddingBottom = UDim.new(0, 2),
             }),
