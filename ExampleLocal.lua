@@ -1,12 +1,14 @@
--- JopLib Example Script
--- Matches Linoria-style API for testing all features
+-- JopLib Example Script (LOCAL)
+-- Loads from local files instead of GitHub for faster testing
+-- Put Library.lua, Elements.lua, ThemeManager.lua, SaveManager.lua
+-- into your executor's workspace/JopLib/ folder
 
-local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
+local folder = "JopLib/"
 
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-local Elements = loadstring(game:HttpGet(repo .. "Elements.lua"))()
-local ThemeManager = loadstring(game:HttpGet(repo .. "ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet(repo .. "SaveManager.lua"))()
+local Library = loadstring(readfile(folder .. "Library.lua"))()
+local Elements = loadstring(readfile(folder .. "Elements.lua"))()
+local ThemeManager = loadstring(readfile(folder .. "ThemeManager.lua"))()
+local SaveManager = loadstring(readfile(folder .. "SaveManager.lua"))()
 
 Elements:Setup(Library)
 ThemeManager:SetLibrary(Library)

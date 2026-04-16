@@ -467,32 +467,49 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end,
     })
 
-    -- Default theme button + label (LinoriaLib style)
-    right:AddButton({
-        Text = "Set as default",
-        Func = function()
-            local themeName = ThemeManager._currentThemeName or "Default"
-            ThemeManager:SaveDefault(themeName)
-            if lib.Notify then lib:Notify(string.format("Set default theme to %q", themeName)) end
-            -- Update label
-            if ThemeManager.DefaultLabel then
-                ThemeManager.DefaultLabel:SetText("Current default theme: " .. themeName)
+    right:AddDivider()
+
+    -- Auto-load theme toggle
+    local currentAutoTheme = "none"
+    pcall(function()
+        if typeof(isfile) == "function" and isfile(ThemeManager:_getAutoloadPath()) then
+            local content = readfile(ThemeManager:_getAutoloadPath())
+            content = content:match("^%s*(.-)%s*$") or ""
+            if content ~= "" then
+                currentAutoTheme = content
             end
-        end,
+        end
+    end)
+
+    right:AddToggle("AutoLoadTheme", {
+        Text = "Auto-load Theme",
+        Default = false,
     })
 
-    ThemeManager.DefaultLabel = right:AddLabel("Current default theme: " .. (ThemeManager._currentThemeName or "Default"), true)
+    -- Show the saved theme name next to the toggle
+    if currentAutoTheme ~= "none" and getgenv().Toggles.AutoLoadTheme then
+        getgenv().Toggles.AutoLoadTheme:SetValueText(currentAutoTheme)
+    end
 
-    -- Load default theme on startup (auto-load)
-    task.defer(function()
-        local loaded = ThemeManager:LoadDefault()
-        -- Update dropdown to match loaded theme
-        if getgenv().Options.ThemeSelector and loaded ~= getgenv().Options.ThemeSelector.Value then
-            getgenv().Options.ThemeSelector:SetValue(loaded)
-        end
-        -- Update label
-        if ThemeManager.DefaultLabel then
-            ThemeManager.DefaultLabel:SetText("Current default theme: " .. loaded)
+    getgenv().Toggles.AutoLoadTheme:OnChanged(function()
+        -- Skip if we're in the middle of loading autoload theme
+        if ThemeManager._loadingAutoTheme then return end
+
+        if getgenv().Toggles.AutoLoadTheme.Value then
+            -- Enabling auto-load: save current theme
+            local themeName = ThemeManager._currentThemeName or "Default"
+            ThemeManager:_saveAutoloadSilent(themeName)
+            getgenv().Toggles.AutoLoadTheme:SetValueText(themeName)
+            if lib.Notify then lib:Notify(string.format("Auto-load theme set to %q", themeName)) end
+        else
+            -- Disabling auto-load: delete the autoload file
+            pcall(function()
+                if typeof(delfile) == "function" then
+                    delfile(ThemeManager:_getAutoloadPath())
+                end
+            end)
+            getgenv().Toggles.AutoLoadTheme:SetValueText("")
+            if lib.Notify then lib:Notify("Auto-load theme disabled") end
         end
     end)
 
@@ -571,14 +588,34 @@ function ThemeManager:SaveDefault(theme)
     end)
 end
 
+function ThemeManager:GetCustomTheme(name)
+    if not name or name == "" then return nil end
+    local folder = self:_getThemesFolder()
+    local ok, content = pcall(function()
+        return readfile(folder .. "/" .. name .. ".json")
+    end)
+    if not ok or not content then return nil end
+    local ok2, data = pcall(function() return HttpService:JSONDecode(content) end)
+    if not ok2 or not data then return nil end
+    return data
+end
+
 function ThemeManager:LoadDefault()
     local theme = "Default"
     local path = self:_getDefaultThemePath()
     local ok, content = pcall(function() return readfile(path) end)
     if ok and content then
         content = content:match("^%s*(.-)%s*$") or ""
-        if content ~= "" and (self.BuiltInThemes[content] or self:GetCustomTheme(content)) then
-            theme = content
+        if content ~= "" then
+            -- Check built-in themes first, then custom themes
+            if self.BuiltInThemes[content] then
+                theme = content
+            else
+                local customData = self:GetCustomTheme(content)
+                if customData then
+                    theme = content
+                end
+            end
         end
     end
     self:SetTheme(theme)
