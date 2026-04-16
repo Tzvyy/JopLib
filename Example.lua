@@ -355,8 +355,8 @@ MenuGroup:AddLabel(""):AddKeyPicker("MenuKeybind", {
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Show Watermark toggle (instance-local to avoid multi-script conflicts)
-local ShowWatermarkToggle = MenuGroup:AddToggle("ShowWatermark", {
+-- Show Watermark toggle (unique flag per script instance to avoid collisions)
+local ShowWatermarkToggle = MenuGroup:AddToggle("ShowWatermark_" .. tostring(math.random(10000, 99999)), {
     Text = "Show Watermark",
     Default = false,
 })
@@ -364,8 +364,8 @@ ShowWatermarkToggle:OnChanged(function(val)
     Library:SetWatermarkVisibility(val)
 end)
 
--- Show Keybinds toggle (instance-local to avoid multi-script conflicts)
-local ShowKeybindsToggle = MenuGroup:AddToggle("ShowKeybinds", {
+-- Show Keybinds toggle (unique flag per script instance to avoid collisions)
+local ShowKeybindsToggle = MenuGroup:AddToggle("ShowKeybinds_" .. tostring(math.random(10000, 99999)), {
     Text = "Show Keybinds",
     Default = false,
 })
