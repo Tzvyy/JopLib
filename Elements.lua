@@ -1313,7 +1313,7 @@ function Elements:Setup(Library)
             local absPos = preview.AbsolutePosition
 
             local pickerW = 200
-            local pickerH = 180
+            local pickerH = 190
             pickerFrame = Create("Frame", {
                 Name = "PickerPopup_" .. flag,
                 Size = UDim2.new(0, pickerW, 0, pickerH),
@@ -1475,24 +1475,51 @@ function Elements:Setup(Library)
                 Create("UIPadding", { PaddingLeft = UDim.new(0, 4) }),
             })
 
-            local closeBtn = Create("TextButton", {
-                Size = UDim2.new(1, -16, 0, 18),
+            -- Transparency slider
+            local transLabel = Create("TextLabel", {
+                Size = UDim2.new(1, -16, 0, 14),
                 Position = UDim2.new(0, 8, 0, 154),
-                BackgroundColor3 = lib.Theme.ElementBg,
-                BorderSizePixel = 0,
-                Text = "Close",
+                BackgroundTransparency = 1,
+                Text = "Transparency: " .. math.floor((cpObj.Transparency or 0) * 100) .. "%",
                 TextColor3 = lib.Theme.FontSecondary,
                 FontFace = lib.FontRegular,
                 TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 101,
                 Parent = pickerFrame,
-            }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
             })
-            closeBtn.MouseButton1Click:Connect(function()
-                closePicker()
-                lib._openPopup = nil
-            end)
+
+            local transBar = Create("Frame", {
+                Name = "TransBar",
+                Size = UDim2.new(1, -16, 0, 12),
+                Position = UDim2.new(0, 8, 0, 170),
+                BackgroundColor3 = cpObj.Value,
+                BorderSizePixel = 0,
+                ZIndex = 101,
+                ClipsDescendants = true,
+                Parent = pickerFrame,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+                Create("UIGradient", {
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0),
+                        NumberSequenceKeypoint.new(1, 1),
+                    }),
+                }),
+            })
+
+            local transCursor = Create("Frame", {
+                Size = UDim2.new(0, 4, 1, 4),
+                Position = UDim2.new(cpObj.Transparency or 0, -2, 0, -2),
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BorderSizePixel = 0,
+                ZIndex = 103,
+                Parent = transBar,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
+            })
 
             local function updateColor()
                 local newColor = Color3.fromHSV(h, s, v)
@@ -1501,9 +1528,10 @@ function Elements:Setup(Library)
                 svCursor.Position = UDim2.new(s, -4, 1-v, -4)
                 hueCursor.Position = UDim2.new(0, -2, h, -2)
                 hexBox.Text = "#" .. newColor:ToHex()
+                transBar.BackgroundColor3 = newColor
             end
 
-            local svDragging, hueDragging = false, false
+            local svDragging, hueDragging, transDragging = false, false, false
 
             local svBtn = Create("TextButton", {
                 Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = svField,
@@ -1525,6 +1553,16 @@ function Elements:Setup(Library)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
             end)
 
+            local transBtn = Create("TextButton", {
+                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = transBar,
+            })
+            transBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then transDragging = true end
+            end)
+            transBtn.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then transDragging = false end
+            end)
+
             local pickerMoveConn = UserInputService.InputChanged:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
                 if svDragging then
@@ -1535,6 +1573,12 @@ function Elements:Setup(Library)
                 if hueDragging then
                     h = math.clamp((input.Position.Y - hueBar.AbsolutePosition.Y) / hueBar.AbsoluteSize.Y, 0, 1)
                     updateColor()
+                end
+                if transDragging then
+                    local t = math.clamp((input.Position.X - transBar.AbsolutePosition.X) / transBar.AbsoluteSize.X, 0, 1)
+                    cpObj.Transparency = t
+                    transCursor.Position = UDim2.new(t, -2, 0, -2)
+                    transLabel.Text = "Transparency: " .. math.floor(t * 100) .. "%"
                 end
             end)
             table.insert(lib.Connections, pickerMoveConn)

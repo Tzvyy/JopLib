@@ -197,7 +197,7 @@ function ThemeManager:_getThemesFolder()
 end
 
 function ThemeManager:_getAutoloadPath()
-    return self:_getThemesFolder() .. "/autoload_theme.txt"
+    return self:_getThemesFolder() .. "/autoload.txt"
 end
 
 function ThemeManager:_getDefaultThemePath()
@@ -393,7 +393,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         })
     end
 
-    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick)
+    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick, doubleClick)
         local btn = Create("TextButton", {
             Name = "Btn",
             Size = UDim2.new(0.5, -2, 1, 0),
@@ -409,7 +409,30 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
-        btn.MouseButton1Click:Connect(onClick)
+        if doubleClick then
+            local confirming = false
+            btn.MouseButton1Click:Connect(function()
+                if not confirming then
+                    confirming = true
+                    btn.Text = "Are you sure?"
+                    btn.TextColor3 = lib.Theme.Accent
+                    task.delay(3, function()
+                        if confirming then
+                            confirming = false
+                            btn.Text = btnText
+                            btn.TextColor3 = lib.Theme.FontPrimary
+                        end
+                    end)
+                    return
+                end
+                confirming = false
+                btn.Text = btnText
+                btn.TextColor3 = lib.Theme.FontPrimary
+                onClick()
+            end)
+        else
+            btn.MouseButton1Click:Connect(onClick)
+        end
         return btn
     end
 
@@ -486,8 +509,11 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         local newList = ThemeManager:_listCustomThemes()
         if getgenv().Options.CustomThemeList then
             getgenv().Options.CustomThemeList:SetValues(newList)
+            if #newList == 0 then
+                getgenv().Options.CustomThemeList:SetValue(nil)
+            end
         end
-    end)
+    end, true)
 
     -- Row 3: Refresh list (full-width)
     right:AddButton({
@@ -496,6 +522,9 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             local newList = ThemeManager:_listCustomThemes()
             if getgenv().Options.CustomThemeList then
                 getgenv().Options.CustomThemeList:SetValues(newList)
+                if #newList == 0 then
+                    getgenv().Options.CustomThemeList:SetValue(nil)
+                end
             end
             if lib.Notify then lib:Notify("Custom themes refreshed", 2) end
         end,

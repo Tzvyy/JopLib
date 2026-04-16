@@ -296,7 +296,7 @@ MenuGroup:AddButton({
     Func = function() Library:Unload() end,
 })
 
-MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+MenuGroup:AddLabel(""):AddKeyPicker("MenuKeybind", {
     Default = "End",
     NoUI = true,
     Text = "Menu keybind",

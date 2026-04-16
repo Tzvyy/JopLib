@@ -1,14 +1,12 @@
 -- JopLib Example Script (LOCAL)
 -- Loads from local files instead of GitHub for faster testing
--- Put Library.lua, Elements.lua, ThemeManager.lua, SaveManager.lua
--- into your executor's workspace/JopLib/ folder
+-- Put the JopLib folder (with Library.lua, Elements.lua, etc.)
+-- into your executor's workspace/ folder
 
-local folder = "JopLib/"
-
-local Library = loadstring(readfile(folder .. "Library.lua"))()
-local Elements = loadstring(readfile(folder .. "Elements.lua"))()
-local ThemeManager = loadstring(readfile(folder .. "ThemeManager.lua"))()
-local SaveManager = loadstring(readfile(folder .. "SaveManager.lua"))()
+local Library = loadstring(readfile("JopLib/Library.lua"))()
+local Elements = loadstring(readfile("JopLib/Elements.lua"))()
+local ThemeManager = loadstring(readfile("JopLib/ThemeManager.lua"))()
+local SaveManager = loadstring(readfile("JopLib/SaveManager.lua"))()
 
 Elements:Setup(Library)
 ThemeManager:SetLibrary(Library)
@@ -298,7 +296,7 @@ MenuGroup:AddButton({
     Func = function() Library:Unload() end,
 })
 
-MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+MenuGroup:AddLabel(""):AddKeyPicker("MenuKeybind", {
     Default = "End",
     NoUI = true,
     Text = "Menu keybind",

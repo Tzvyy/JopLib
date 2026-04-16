@@ -7,7 +7,7 @@ local HttpService = game:GetService("HttpService")
 
 local SaveManager = {}
 SaveManager.Library = nil
-SaveManager.Folder = "JopLib/settings"
+SaveManager.Folder = "JopLib/configs"
 SaveManager.BaseFolder = "JopLib"
 SaveManager.IgnoreIndexes = {}
 SaveManager.IgnoreTheme = false
@@ -33,10 +33,12 @@ end
 function SaveManager:IgnoreThemeSettings()
     self.IgnoreTheme = true
     self.IgnoreIndexes["ThemeSelector"] = true
-    self.IgnoreIndexes["ShowWatermark"] = true
-    self.IgnoreIndexes["ShowKeybindFrame"] = true
-    for key, _ in pairs(self.Library and self.Library.Theme or {}) do
-        self.IgnoreIndexes["ThemeColor_" .. key] = true
+    self.IgnoreIndexes["KeybindListFilter"] = true
+    self.IgnoreIndexes["CustomThemeName"] = true
+    self.IgnoreIndexes["CustomThemeList"] = true
+    -- Color picker flags are numbered 1-6 (matching ThemeManager:ApplyToTab)
+    for i = 1, 6 do
+        self.IgnoreIndexes["ThemeColor_" .. i] = true
     end
 end
 
@@ -233,7 +235,7 @@ function SaveManager:BuildConfigSection(tab)
     right:AddInput("ConfigName", {
         Text = "Config Name",
         Default = "",
-        Placeholder = "my_config",
+        Placeholder = "Enter config name...",
     })
 
     local configs = self:GetConfigs()
@@ -280,7 +282,7 @@ function SaveManager:BuildConfigSection(tab)
         })
     end
 
-    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick)
+    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick, doubleClick)
         local btn = Create("TextButton", {
             Name = "Btn",
             Size = UDim2.new(0.5, -2, 1, 0),
@@ -296,7 +298,30 @@ function SaveManager:BuildConfigSection(tab)
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
-        btn.MouseButton1Click:Connect(onClick)
+        if doubleClick then
+            local confirming = false
+            btn.MouseButton1Click:Connect(function()
+                if not confirming then
+                    confirming = true
+                    btn.Text = "Are you sure?"
+                    btn.TextColor3 = lib.Theme.Accent
+                    task.delay(3, function()
+                        if confirming then
+                            confirming = false
+                            btn.Text = btnText
+                            btn.TextColor3 = lib.Theme.FontPrimary
+                        end
+                    end)
+                    return
+                end
+                confirming = false
+                btn.Text = btnText
+                btn.TextColor3 = lib.Theme.FontPrimary
+                onClick()
+            end)
+        else
+            btn.MouseButton1Click:Connect(onClick)
+        end
         return btn
     end
 
@@ -352,15 +377,21 @@ function SaveManager:BuildConfigSection(tab)
     end)
 
     makeSideBySideBtn("Delete config", 1, row2, function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-        if name == "" then return end
+        local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Select a config first", 2) end
+            return
+        end
         self:Delete(name)
         if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
         local newConfigs = self:GetConfigs()
         if getgenv().Options.ConfigList then
             getgenv().Options.ConfigList:SetValues(newConfigs)
+            if #newConfigs == 0 then
+                getgenv().Options.ConfigList:SetValue(nil)
+            end
         end
-    end)
+    end, true)
 
     -- Row 3: Refresh list (full-width)
     right:AddButton({
@@ -369,6 +400,9 @@ function SaveManager:BuildConfigSection(tab)
             local newConfigs = self:GetConfigs()
             if getgenv().Options.ConfigList then
                 getgenv().Options.ConfigList:SetValues(newConfigs)
+                if #newConfigs == 0 then
+                    getgenv().Options.ConfigList:SetValue(nil)
+                end
             end
             if lib.Notify then lib:Notify("Found " .. #newConfigs .. " configs", 2) end
         end,

@@ -70,14 +70,19 @@ Options.MySlider:SetValue(50)
 
 ### Button
 ```lua
-Left:AddButton("Click Me", function()
-    print("Clicked!")
-end)
+-- Table API (supports sub-buttons)
+local MyButton = Left:AddButton({
+    Text = "Click Me",
+    Func = function() print("Clicked!") end,
+    DoubleClick = false,
+})
 
--- With double-click confirm:
-Left:AddButton("Dangerous Action", function()
-    print("Confirmed!")
-end, { DoubleConfirm = true })
+-- Sub-button (appears stacked below)
+MyButton:AddButton({
+    Text = "Sub Button",
+    Func = function() print("Sub clicked!") end,
+    DoubleClick = true,  -- requires double-click to confirm
+})
 ```
 
 ### Dropdown
@@ -138,10 +143,10 @@ Options.SpeedKey.Mode        -- current mode
 
 ### ColorPicker
 ```lua
--- Standalone
-Left:AddColorPicker("MyColor", {
-    Text = "Box Color",
+-- On a label
+Left:AddLabel("Box Color"):AddColorPicker("BoxColor", {
     Default = Color3.fromRGB(255, 0, 0),
+    Title = "Box Color",
 })
 
 -- Chained onto a toggle
@@ -156,6 +161,7 @@ Options.BoxColor:SetValue(Color3.fromRGB(0, 255, 0))
 ### Label & Divider
 ```lua
 Left:AddLabel("Some info text")
+Left:AddLabel("Wrapping text here", true)  -- second arg enables word wrap
 Left:AddDivider()
 
 -- Label with color picker attached
@@ -167,52 +173,64 @@ Left:AddLabel("Accent Color"):AddColorPicker("AccentCol", {
 ### DependencyBox
 Shows/hides elements based on a toggle's state.
 ```lua
+Left:AddToggle("ControlToggle", { Text = "Master Toggle" })
+
 local dep = Left:AddDependencyBox()
 dep:SetupDependencies({
-    { Flag = "Speed", Inverted = false },
+    { Toggles.ControlToggle, true },  -- visible when ControlToggle is ON
 })
-dep:AddSlider("BurstTime", { Text = "Burst", Min = 0.1, Max = 1.0, Default = 0.3 })
-dep:AddLabel("Only visible when Speed is ON")
+dep:AddSlider("SubSlider", { Text = "Sub Slider", Min = 0, Max = 100, Default = 50 })
+dep:AddLabel("Only visible when Master Toggle is ON")
 ```
 
-## Module List
-A draggable overlay showing active modules + keybinds.
+### TabBox
 ```lua
-Library:AddModule({ Name = "Speed", Toggle = "SpeedEnabled", Keybind = "SpeedKey" })
-Library:AddModule({ Name = "ESP", Toggle = "ESPEnabled" })
-
-Library.ModuleListEnabled = true
-Library:CreateModuleListGui()
--- Library.ModuleListMode = 1  (1 = all, 2 = enabled only)
+local TabBox = Tab:AddRightTabbox()
+local Tab1 = TabBox:AddTab("Tab 1")
+Tab1:AddToggle("T1Toggle", { Text = "Toggle" })
+local Tab2 = TabBox:AddTab("Tab 2")
+Tab2:AddDropdown("T2Drop", { Text = "Drop", Values = {"A","B","C"}, Default = 1 })
 ```
 
 ## ThemeManager
 ```lua
 ThemeManager:SetLibrary(Library)
-ThemeManager:SetFolder("MyScript")
-ThemeManager:ApplyToTab(Tabs.Settings)  -- adds theme dropdown + save/load
-ThemeManager:SetTheme("Mocha")          -- programmatic switch
+ThemeManager:ApplyToTab(Tabs.Settings, MenuGroupbox)  -- adds theme dropdown + color pickers + custom themes
+ThemeManager:LoadAutoloadTheme()
+ThemeManager:SetTheme("Default")  -- programmatic switch
 ```
 
-Built-in themes: **Default**, **Light**, **Mocha**, **Dracula**
+Built-in themes: **Default**, **Dark**, **Light**
+
+Custom themes can be saved/loaded/deleted via the UI. Use "Set as autoload" to auto-apply on startup.
 
 ## SaveManager
 ```lua
 SaveManager:SetLibrary(Library)
-SaveManager:SetFolder("MyScript/configs")
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
 SaveManager:BuildConfigSection(Tabs.Settings)  -- adds config UI
 SaveManager:LoadAutoloadConfig()
 ```
 
+Config section provides: Save, Load, Overwrite, Delete, Refresh, and Set as autoload.
+
 ## Notifications
 ```lua
 Library:Notify("Hello world!", 3)  -- text, duration in seconds
 ```
 
+## Watermark
+```lua
+Library:SetWatermark("My Script | 60fps")
+Library:SetWatermarkVisibility(true)
+```
+
 ## Unload
 ```lua
+Library:OnUnload(function()
+    print("Cleanup here")
+end)
 Library:Unload()  -- destroys GUI, disconnects all events
 ```
 
@@ -229,10 +247,11 @@ local FontFamily = "rbxasset://fonts/families/Inter.json"
 ## File Structure
 ```
 JopLib/
-├── Library.lua       — Core window, tabs, groupboxes, layout
-├── Elements.lua      — All UI elements
-├── ThemeManager.lua  — Theme system
-├── SaveManager.lua   — Config save/load
-├── Example.lua       — Demo script
-└── README.md         — This file
+├── Library.lua        — Core window, tabs, groupboxes, layout
+├── Elements.lua       — All UI elements
+├── ThemeManager.lua   — Theme system with built-in + custom themes
+├── SaveManager.lua    — Config save/load system
+├── Example.lua        — Demo script (loads from GitHub)
+├── ExampleLocal.lua   — Demo script (loads from local files)
+└── README.md          — This file
 ```
