@@ -833,6 +833,9 @@ function Elements:Setup(Library)
                     SortOrder = Enum.SortOrder.LayoutOrder,
                 }),
             })
+            lib:AddToRegistry(dropList, { BackgroundColor3 = "ElementBg", ScrollBarImageColor3 = "Accent" })
+            local dlStroke = dropList:FindFirstChildOfClass("UIStroke")
+            if dlStroke then lib:AddToRegistry(dlStroke, { Color = "ElementBorder" }) end
 
             for i, val in ipairs(values) do
                 local isSelected = multi and dropObj.Value[val] or (dropObj.Value == val)
