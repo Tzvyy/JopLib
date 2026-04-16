@@ -1259,7 +1259,10 @@ function Elements:Setup(Library)
         function cpObj:SetValue(color, trans)
             if color then self.Value = color end
             if trans ~= nil then self.Transparency = trans end
-            if self._preview then self._preview.BackgroundColor3 = self.Value end
+            if self._preview then
+                self._preview.BackgroundColor3 = self.Value
+                self._preview.BackgroundTransparency = self.Transparency or 0
+            end
             for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
             if callback then task.spawn(callback, self.Value) end
         end
@@ -1299,6 +1302,100 @@ function Elements:Setup(Library)
             Parent = preview,
         })
 
+        -- Right-click context menu for copy/paste
+        previewBtn.MouseButton2Click:Connect(function()
+            lib:ClosePopups()
+
+            local absPos = preview.AbsolutePosition
+            local absSize = preview.AbsoluteSize
+
+            local menuItems = {
+                { text = "Copy color", action = function()
+                    lib._copiedColor = { color = cpObj.Value, transparency = cpObj.Transparency or 0 }
+                    if lib.Notify then lib:Notify("Color copied", 1.5) end
+                end },
+                { text = "Paste color", action = function()
+                    if lib._copiedColor then
+                        if pickerFrame then closePicker() end
+                        cpObj:SetValue(lib._copiedColor.color, lib._copiedColor.transparency)
+                        if lib.Notify then lib:Notify("Color pasted", 1.5) end
+                    else
+                        if lib.Notify then lib:Notify("No color copied", 1.5) end
+                    end
+                end },
+                { text = "Copy HEX", action = function()
+                    local hex = "#" .. cpObj.Value:ToHex()
+                    pcall(function() if setclipboard then setclipboard(hex) end end)
+                    if lib.Notify then lib:Notify("Copied: " .. hex, 1.5) end
+                end },
+                { text = "Copy RGB", action = function()
+                    local cr = math.floor(cpObj.Value.R * 255)
+                    local cg = math.floor(cpObj.Value.G * 255)
+                    local cb = math.floor(cpObj.Value.B * 255)
+                    local rgb = cr .. ", " .. cg .. ", " .. cb
+                    pcall(function() if setclipboard then setclipboard(rgb) end end)
+                    if lib.Notify then lib:Notify("Copied: " .. rgb, 1.5) end
+                end },
+            }
+
+            local menuH = #menuItems * 22
+            local ctxMenu = Create("Frame", {
+                Name = "ColorCtxMenu",
+                Size = UDim2.new(0, 120, 0, menuH),
+                Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2),
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                ZIndex = 100,
+                Parent = lib._popupHolder,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+                Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }),
+            })
+
+            local function closeCtxMenu()
+                ctxMenu:Destroy()
+            end
+
+            for i, item in ipairs(menuItems) do
+                local mBtn = Create("TextButton", {
+                    Size = UDim2.new(1, 0, 0, 22),
+                    BackgroundColor3 = lib.Theme.ElementBg,
+                    BackgroundTransparency = 0,
+                    BorderSizePixel = 0,
+                    Text = item.text,
+                    TextColor3 = lib.Theme.FontPrimary,
+                    FontFace = lib.FontRegular,
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    LayoutOrder = i,
+                    ZIndex = 101,
+                    Parent = ctxMenu,
+                }, {
+                    Create("UIPadding", { PaddingLeft = UDim.new(0, 8) }),
+                    i == 1 and Create("UICorner", { CornerRadius = UDim.new(0, 4) }) or nil,
+                    i == #menuItems and Create("UICorner", { CornerRadius = UDim.new(0, 4) }) or nil,
+                })
+                mBtn.MouseButton1Click:Connect(function()
+                    item.action()
+                    closeCtxMenu()
+                    lib._openPopup = nil
+                end)
+                mBtn.MouseEnter:Connect(function()
+                    mBtn.BackgroundColor3 = lib.Theme.Accent
+                    mBtn.BackgroundTransparency = 0.7
+                end)
+                mBtn.MouseLeave:Connect(function()
+                    mBtn.BackgroundColor3 = lib.Theme.ElementBg
+                    mBtn.BackgroundTransparency = 0
+                end)
+            end
+
+            lib._openPopup = { Close = closeCtxMenu }
+            lib._openPopupTrigger = previewBtn
+            lib:_showClickCatcher()
+        end)
+
         previewBtn.MouseButton1Click:Connect(function()
             if pickerFrame then
                 closePicker()
@@ -1312,18 +1409,18 @@ function Elements:Setup(Library)
             local h, s, v = Color3.toHSV(cpObj.Value)
             local absPos = preview.AbsolutePosition
 
-            local pickerW = 200
-            local pickerH = 190
+            local pickerW = 220
+            local pickerH = 222
             pickerFrame = Create("Frame", {
                 Name = "PickerPopup_" .. flag,
                 Size = UDim2.new(0, pickerW, 0, pickerH),
-                Position = UDim2.new(0, absPos.X, 0, absPos.Y + 22),
+                Position = UDim2.new(0, absPos.X - pickerW + 22, 0, absPos.Y + 22),
                 BackgroundColor3 = lib.Theme.Background,
                 BorderSizePixel = 0,
                 ZIndex = 100,
                 Parent = lib._popupHolder,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
                 Create("UIStroke", { Color = lib.Theme.Border, Thickness = 1 }),
             })
 
@@ -1336,14 +1433,15 @@ function Elements:Setup(Library)
                     return
                 end
                 local ap = preview.AbsolutePosition
-                pickerFrame.Position = UDim2.new(0, ap.X, 0, ap.Y + 22)
+                pickerFrame.Position = UDim2.new(0, ap.X - pickerW + 22, 0, ap.Y + 22)
             end)
             table.insert(lib.Connections, pickerTrackConn)
 
+            -- Title
             Create("TextLabel", {
                 Name = "Title",
-                Size = UDim2.new(1, -8, 0, 18),
-                Position = UDim2.new(0, 4, 0, 2),
+                Size = UDim2.new(1, -12, 0, 16),
+                Position = UDim2.new(0, 8, 0, 4),
                 BackgroundTransparency = 1,
                 Text = title,
                 TextColor3 = lib.Theme.FontPrimary,
@@ -1354,13 +1452,11 @@ function Elements:Setup(Library)
                 Parent = pickerFrame,
             })
 
-            -- SV Field: background = pure hue color
-            -- White gradient left-to-right (saturation)
-            -- Black gradient top-to-bottom (value, inverted)
+            -- SV Field (large, matching reference)
             local svField = Create("Frame", {
                 Name = "SVField",
-                Size = UDim2.new(0, 148, 0, 100),
-                Position = UDim2.new(0, 8, 0, 22),
+                Size = UDim2.new(0, 174, 0, 140),
+                Position = UDim2.new(0, 8, 0, 24),
                 BackgroundColor3 = Color3.fromHSV(h, 1, 1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
@@ -1409,23 +1505,25 @@ function Elements:Setup(Library)
                 }),
             })
 
+            -- SV Cursor (circle)
             local svCursor = Create("Frame", {
-                Size = UDim2.new(0, 8, 0, 8),
-                Position = UDim2.new(s, -4, 1-v, -4),
-                BackgroundColor3 = Color3.new(1,1,1),
+                Size = UDim2.new(0, 10, 0, 10),
+                Position = UDim2.new(s, -5, 1-v, -5),
+                BackgroundColor3 = Color3.new(1, 1, 1),
                 BorderSizePixel = 0,
-                ZIndex = 104,
+                ZIndex = 105,
                 Parent = svField,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
-                Create("UIStroke", { Color = Color3.new(0,0,0), Thickness = 1 }),
+                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1.5 }),
             })
 
+            -- Hue Bar (vertical, right side)
             local hueBar = Create("Frame", {
                 Name = "HueBar",
-                Size = UDim2.new(0, 16, 0, 100),
-                Position = UDim2.new(0, 164, 0, 22),
-                BackgroundColor3 = Color3.new(1,1,1),
+                Size = UDim2.new(0, 20, 0, 140),
+                Position = UDim2.new(0, 190, 0, 24),
+                BackgroundColor3 = Color3.new(1, 1, 1),
                 BorderSizePixel = 0,
                 ZIndex = 101,
                 Parent = pickerFrame,
@@ -1434,32 +1532,96 @@ function Elements:Setup(Library)
                 Create("UIGradient", {
                     Rotation = 90,
                     Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromHSV(0,1,1)),
-                        ColorSequenceKeypoint.new(0.167, Color3.fromHSV(0.167,1,1)),
-                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333,1,1)),
-                        ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5,1,1)),
-                        ColorSequenceKeypoint.new(0.667, Color3.fromHSV(0.667,1,1)),
-                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833,1,1)),
-                        ColorSequenceKeypoint.new(1, Color3.fromHSV(1,1,1)),
+                        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)),
+                        ColorSequenceKeypoint.new(0.167, Color3.fromHSV(0.167, 1, 1)),
+                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333, 1, 1)),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5, 1, 1)),
+                        ColorSequenceKeypoint.new(0.667, Color3.fromHSV(0.667, 1, 1)),
+                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833, 1, 1)),
+                        ColorSequenceKeypoint.new(1, Color3.fromHSV(1, 1, 1)),
                     }),
                 }),
             })
 
+            -- Hue Cursor
             local hueCursor = Create("Frame", {
                 Size = UDim2.new(1, 4, 0, 4),
                 Position = UDim2.new(0, -2, h, -2),
-                BackgroundColor3 = Color3.new(1,1,1),
+                BackgroundColor3 = Color3.new(1, 1, 1),
                 BorderSizePixel = 0,
                 ZIndex = 103,
                 Parent = hueBar,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
-                Create("UIStroke", { Color = Color3.new(0,0,0), Thickness = 1 }),
+                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
             })
 
+            -- Transparency bar with checkerboard background
+            local transBarBg = Create("Frame", {
+                Name = "TransBarBg",
+                Size = UDim2.new(0, 202, 0, 14),
+                Position = UDim2.new(0, 8, 0, 170),
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BorderSizePixel = 0,
+                ZIndex = 101,
+                ClipsDescendants = true,
+                Parent = pickerFrame,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+            })
+
+            -- Checkerboard squares
+            for row = 0, 1 do
+                for col = 0, 28 do
+                    if (row + col) % 2 == 1 then
+                        Create("Frame", {
+                            Size = UDim2.new(0, 7, 0, 7),
+                            Position = UDim2.new(0, col * 7, 0, row * 7),
+                            BackgroundColor3 = Color3.fromRGB(190, 190, 190),
+                            BorderSizePixel = 0,
+                            ZIndex = 102,
+                            Parent = transBarBg,
+                        })
+                    end
+                end
+            end
+
+            -- Color overlay with transparency gradient
+            local transBar = Create("Frame", {
+                Name = "TransBar",
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundColor3 = cpObj.Value,
+                BorderSizePixel = 0,
+                ZIndex = 103,
+                Parent = transBarBg,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UIGradient", {
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0),
+                        NumberSequenceKeypoint.new(1, 1),
+                    }),
+                }),
+            })
+
+            -- Transparency cursor
+            local transCursor = Create("Frame", {
+                Size = UDim2.new(0, 4, 1, 4),
+                Position = UDim2.new(cpObj.Transparency or 0, -2, 0, -2),
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BorderSizePixel = 0,
+                ZIndex = 105,
+                Parent = transBarBg,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
+            })
+
+            -- Hex input (left)
             local hexBox = Create("TextBox", {
-                Size = UDim2.new(1, -16, 0, 22),
-                Position = UDim2.new(0, 8, 0, 128),
+                Size = UDim2.new(0, 98, 0, 22),
+                Position = UDim2.new(0, 8, 0, 190),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
                 Text = "#" .. cpObj.Value:ToHex(),
@@ -1470,71 +1632,54 @@ function Elements:Setup(Library)
                 ZIndex = 101,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
-                Create("UIPadding", { PaddingLeft = UDim.new(0, 4) }),
+                Create("UIPadding", { PaddingLeft = UDim.new(0, 6) }),
             })
 
-            -- Transparency slider
-            local transLabel = Create("TextLabel", {
-                Size = UDim2.new(1, -16, 0, 14),
-                Position = UDim2.new(0, 8, 0, 154),
-                BackgroundTransparency = 1,
-                Text = "Transparency: " .. math.floor((cpObj.Transparency or 0) * 100) .. "%",
-                TextColor3 = lib.Theme.FontSecondary,
+            -- RGB input (right)
+            local initR = math.floor(cpObj.Value.R * 255)
+            local initG = math.floor(cpObj.Value.G * 255)
+            local initB = math.floor(cpObj.Value.B * 255)
+
+            local rgbBox = Create("TextBox", {
+                Size = UDim2.new(0, 100, 0, 22),
+                Position = UDim2.new(0, 110, 0, 190),
+                BackgroundColor3 = lib.Theme.ElementBg,
+                BorderSizePixel = 0,
+                Text = initR .. ", " .. initG .. ", " .. initB,
+                TextColor3 = lib.Theme.FontPrimary,
                 FontFace = lib.FontRegular,
                 TextSize = 11,
-                TextXAlignment = Enum.TextXAlignment.Left,
+                ClearTextOnFocus = false,
                 ZIndex = 101,
-                Parent = pickerFrame,
-            })
-
-            local transBar = Create("Frame", {
-                Name = "TransBar",
-                Size = UDim2.new(1, -16, 0, 12),
-                Position = UDim2.new(0, 8, 0, 170),
-                BackgroundColor3 = cpObj.Value,
-                BorderSizePixel = 0,
-                ZIndex = 101,
-                ClipsDescendants = true,
                 Parent = pickerFrame,
             }, {
                 Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
-                Create("UIGradient", {
-                    Transparency = NumberSequence.new({
-                        NumberSequenceKeypoint.new(0, 0),
-                        NumberSequenceKeypoint.new(1, 1),
-                    }),
-                }),
+                Create("UIPadding", { PaddingLeft = UDim.new(0, 6) }),
             })
 
-            local transCursor = Create("Frame", {
-                Size = UDim2.new(0, 4, 1, 4),
-                Position = UDim2.new(cpObj.Transparency or 0, -2, 0, -2),
-                BackgroundColor3 = Color3.new(1, 1, 1),
-                BorderSizePixel = 0,
-                ZIndex = 103,
-                Parent = transBar,
-            }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
-                Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
-            })
-
+            -- Update function
             local function updateColor()
                 local newColor = Color3.fromHSV(h, s, v)
                 cpObj:SetValue(newColor)
                 svField.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-                svCursor.Position = UDim2.new(s, -4, 1-v, -4)
+                svCursor.Position = UDim2.new(s, -5, 1-v, -5)
                 hueCursor.Position = UDim2.new(0, -2, h, -2)
                 hexBox.Text = "#" .. newColor:ToHex()
+                local ur = math.floor(newColor.R * 255)
+                local ug = math.floor(newColor.G * 255)
+                local ub = math.floor(newColor.B * 255)
+                rgbBox.Text = ur .. ", " .. ug .. ", " .. ub
                 transBar.BackgroundColor3 = newColor
             end
 
             local svDragging, hueDragging, transDragging = false, false, false
 
+            -- SV drag
             local svBtn = Create("TextButton", {
-                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = svField,
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 106, Parent = svField,
             })
             svBtn.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end
@@ -1543,8 +1688,9 @@ function Elements:Setup(Library)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end
             end)
 
+            -- Hue drag
             local hueBtn = Create("TextButton", {
-                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = hueBar,
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = hueBar,
             })
             hueBtn.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true end
@@ -1553,8 +1699,9 @@ function Elements:Setup(Library)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
             end)
 
+            -- Transparency drag
             local transBtn = Create("TextButton", {
-                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", ZIndex = 104, Parent = transBar,
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 106, Parent = transBarBg,
             })
             transBtn.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then transDragging = true end
@@ -1563,6 +1710,7 @@ function Elements:Setup(Library)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then transDragging = false end
             end)
 
+            -- Move handler for all drags
             local pickerMoveConn = UserInputService.InputChanged:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
                 if svDragging then
@@ -1575,14 +1723,14 @@ function Elements:Setup(Library)
                     updateColor()
                 end
                 if transDragging then
-                    local t = math.clamp((input.Position.X - transBar.AbsolutePosition.X) / transBar.AbsoluteSize.X, 0, 1)
-                    cpObj.Transparency = t
+                    local t = math.clamp((input.Position.X - transBarBg.AbsolutePosition.X) / transBarBg.AbsoluteSize.X, 0, 1)
+                    cpObj:SetValue(nil, t)
                     transCursor.Position = UDim2.new(t, -2, 0, -2)
-                    transLabel.Text = "Transparency: " .. math.floor(t * 100) .. "%"
                 end
             end)
             table.insert(lib.Connections, pickerMoveConn)
 
+            -- Hex input handler
             hexBox.FocusLost:Connect(function()
                 local hexText = hexBox.Text:gsub("#", "")
                 local ok, color = pcall(function() return Color3.fromHex("#" .. hexText) end)
@@ -1591,6 +1739,27 @@ function Elements:Setup(Library)
                     updateColor()
                 else
                     hexBox.Text = "#" .. cpObj.Value:ToHex()
+                end
+            end)
+
+            -- RGB input handler
+            rgbBox.FocusLost:Connect(function()
+                local parts = {}
+                for part in rgbBox.Text:gmatch("%d+") do
+                    table.insert(parts, tonumber(part))
+                end
+                if #parts >= 3 then
+                    local r2 = math.clamp(parts[1], 0, 255)
+                    local g2 = math.clamp(parts[2], 0, 255)
+                    local b2 = math.clamp(parts[3], 0, 255)
+                    local color = Color3.fromRGB(r2, g2, b2)
+                    h, s, v = Color3.toHSV(color)
+                    updateColor()
+                else
+                    local cr = math.floor(cpObj.Value.R * 255)
+                    local cg = math.floor(cpObj.Value.G * 255)
+                    local cb = math.floor(cpObj.Value.B * 255)
+                    rgbBox.Text = cr .. ", " .. cg .. ", " .. cb
                 end
             end)
 
