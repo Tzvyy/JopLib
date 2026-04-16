@@ -191,7 +191,9 @@ LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
 })
 
 Options.KeyPicker:OnClick(function()
-    print("Keybind clicked!", Options.KeyPicker:GetState())
+    if Options.KeyPicker and Options.KeyPicker.GetState then
+        print("Keybind clicked!", Options.KeyPicker:GetState())
+    end
 end)
 
 Options.KeyPicker:OnChanged(function()
@@ -202,9 +204,11 @@ task.spawn(function()
     while true do
         wait(1)
         if Library.Unloaded then break end
-        local state = Options.KeyPicker:GetState()
-        if state then
-            Library:Log("KeyPicker is being held down")
+        if Options.KeyPicker and Options.KeyPicker.GetState then
+            local state = Options.KeyPicker:GetState()
+            if state then
+                Library:Log("KeyPicker is being held down")
+            end
         end
     end
 end)

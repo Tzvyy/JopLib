@@ -669,7 +669,7 @@ function Library:CreateWindow(options)
         Parent = screenGui,
     }, {
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
-        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
     })
     self.MainFrame = mainFrame
     self:AddToRegistry(mainFrame, { BackgroundColor3 = "Background" })
