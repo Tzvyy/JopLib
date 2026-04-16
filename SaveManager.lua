@@ -251,55 +251,119 @@ function SaveManager:BuildConfigSection(tab)
         end
     end)
 
-    right:AddButton({
-        Text = "Save Config",
-        Func = function()
-            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-            if name == "" then
-                if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+    -- Helper to create side-by-side button rows
+    local Create = function(cls, props, children)
+        local inst = Instance.new(cls)
+        for k, v in pairs(props or {}) do
+            if k ~= "Parent" then inst[k] = v end
+        end
+        if children then
+            for _, c in ipairs(children) do c.Parent = inst end
+        end
+        if props.Parent then inst.Parent = props.Parent end
+        return inst
+    end
+
+    local function makeButtonRow(rowName, parent)
+        local order = parent:_nextOrder()
+        return Create("Frame", {
+            Name = rowName,
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Parent = parent._container,
+        }, {
+            Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 4),
+            }),
+        })
+    end
+
+    local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick)
+        local btn = Create("TextButton", {
+            Name = "Btn",
+            Size = UDim2.new(0.5, -2, 1, 0),
+            BackgroundColor3 = lib.Theme.ElementBg,
+            BorderSizePixel = 0,
+            Text = btnText,
+            TextColor3 = lib.Theme.FontPrimary,
+            FontFace = lib.FontSemiBold,
+            TextSize = 13,
+            LayoutOrder = layoutOrder,
+            Parent = parent,
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+        })
+        btn.MouseButton1Click:Connect(onClick)
+        return btn
+    end
+
+    -- Row 1: Save config | Load config
+    local row1 = makeButtonRow("SaveLoadRow", right)
+
+    makeSideBySideBtn("Save config", 0, row1, function()
+        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+            return
+        end
+        -- Check if config already exists
+        local existing = self:GetConfigs()
+        for _, n in ipairs(existing) do
+            if n == name then
+                if lib.Notify then lib:Notify("Config already exists, use Overwrite", 2) end
                 return
             end
-            local ok = self:Save(name)
-            if ok then
-                if lib.Notify then lib:Notify("Config saved: " .. name, 2) end
-                -- Refresh list
-                local newConfigs = self:GetConfigs()
-                if getgenv().Options.ConfigList then
-                    getgenv().Options.ConfigList:SetValues(newConfigs)
-                end
-            end
-        end,
-    })
-
-    right:AddButton({
-        Text = "Load Config",
-        Func = function()
-            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-            if name == "" then
-                if lib.Notify then lib:Notify("Enter a config name first!", 2) end
-                return
-            end
-            local ok = self:Load(name)
-            if ok and lib.Notify then lib:Notify("Config loaded: " .. name, 2) end
-            if not ok and lib.Notify then lib:Notify("Config not found: " .. name, 2) end
-        end,
-    })
-
-    right:AddButton({
-        Text = "Delete Config",
-        Func = function()
-            local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
-            if name == "" then return end
-            self:Delete(name)
-            if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
+        end
+        local ok = self:Save(name)
+        if ok then
+            if lib.Notify then lib:Notify("Config saved: " .. name, 2) end
             local newConfigs = self:GetConfigs()
             if getgenv().Options.ConfigList then
                 getgenv().Options.ConfigList:SetValues(newConfigs)
             end
-        end,
-        DoubleClick = true,
-    })
+        end
+    end)
 
+    makeSideBySideBtn("Load config", 1, row1, function()
+        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+            return
+        end
+        local ok = self:Load(name)
+        if ok and lib.Notify then lib:Notify("Config loaded: " .. name, 2) end
+        if not ok and lib.Notify then lib:Notify("Config not found: " .. name, 2) end
+    end)
+
+    -- Row 2: Overwrite config | Delete config
+    local row2 = makeButtonRow("OverwriteDeleteRow", right)
+
+    makeSideBySideBtn("Overwrite config", 0, row2, function()
+        local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Select a config first", 2) end
+            return
+        end
+        local ok = self:Save(name)
+        if ok and lib.Notify then lib:Notify("Config overwritten: " .. name, 2) end
+    end)
+
+    makeSideBySideBtn("Delete config", 1, row2, function()
+        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+        if name == "" then return end
+        self:Delete(name)
+        if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
+        local newConfigs = self:GetConfigs()
+        if getgenv().Options.ConfigList then
+            getgenv().Options.ConfigList:SetValues(newConfigs)
+        end
+    end)
+
+    -- Row 3: Refresh list (full-width)
     right:AddButton({
         Text = "Refresh list",
         Func = function()

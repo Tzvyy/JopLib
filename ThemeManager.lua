@@ -101,23 +101,8 @@ function ThemeManager:SetTheme(name)
 
     self:_applyThemeToGui()
 
-    -- Update color picker previews (indexed flags matching colorMap)
-    local opts = getgenv().Options or {}
-    local colorMap = {
-        { keys = {"Background", "TitleBar", "GroupboxBg"} },
-        { keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
-        { keys = {"Accent", "ToggleOn", "SliderFill"} },
-        { keys = {"Border", "ElementBorder"} },
-        { keys = {"FontPrimary"} },
-        { keys = {"FontSecondary"} },
-    }
-    for i, entry in ipairs(colorMap) do
-        local cpFlag = "ThemeColor_" .. i
-        local firstKey = entry.keys[1]
-        if opts[cpFlag] and theme[firstKey] then
-            pcall(function() opts[cpFlag]:SetValue(theme[firstKey]) end)
-        end
-    end
+    -- Update color picker previews to match theme
+    self:_syncColorPickers()
 
     return true
 end
@@ -231,6 +216,27 @@ function ThemeManager:_ensureFolders()
     return self:_getThemesFolder()
 end
 
+function ThemeManager:_syncColorPickers()
+    local lib = self.Library
+    if not lib then return end
+    local opts = getgenv().Options or {}
+    local colorMap = {
+        { keys = {"Background", "TitleBar", "GroupboxBg"} },
+        { keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
+        { keys = {"Accent", "ToggleOn", "SliderFill"} },
+        { keys = {"Border", "ElementBorder"} },
+        { keys = {"FontPrimary"} },
+        { keys = {"FontSecondary"} },
+    }
+    for i, entry in ipairs(colorMap) do
+        local cpFlag = "ThemeColor_" .. i
+        local firstKey = entry.keys[1]
+        if opts[cpFlag] and lib.Theme[firstKey] then
+            pcall(function() opts[cpFlag]:SetValue(lib.Theme[firstKey]) end)
+        end
+    end
+end
+
 function ThemeManager:_listCustomThemes()
     local folder = self:_getThemesFolder()
     local themes = {}
@@ -282,6 +288,7 @@ function ThemeManager:LoadCustomTheme(name)
     if lib.Theme.Accent then lib.AccentColor = lib.Theme.Accent end
     self._currentThemeName = name
     self:_applyThemeToGui()
+    self:_syncColorPickers()
     return true
 end
 
@@ -367,8 +374,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
     end)
 
-    -- Side-by-side Save/Load buttons
-    local btnOrder = right:_nextOrder()
+    -- Helper to create side-by-side button rows
     local Create = function(cls, props, children)
         local inst = Instance.new(cls)
         for k, v in pairs(props or {}) do
@@ -381,19 +387,22 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         return inst
     end
 
-    local btnRow = Create("Frame", {
-        Name = "SaveLoadRow",
-        Size = UDim2.new(1, 0, 0, 26),
-        BackgroundTransparency = 1,
-        LayoutOrder = btnOrder,
-        Parent = right._container,
-    }, {
-        Create("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 4),
-        }),
-    })
+    local function makeButtonRow(rowName, parent)
+        local order = parent:_nextOrder()
+        return Create("Frame", {
+            Name = rowName,
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Parent = parent._container,
+        }, {
+            Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 4),
+            }),
+        })
+    end
 
     local function makeSideBySideBtn(btnText, layoutOrder, parent, onClick)
         local btn = Create("TextButton", {
@@ -415,11 +424,22 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         return btn
     end
 
-    makeSideBySideBtn("Save theme", 0, btnRow, function()
+    -- Row 1: Save theme | Load theme
+    local row1 = makeButtonRow("SaveLoadRow", right)
+
+    makeSideBySideBtn("Save theme", 0, row1, function()
         local name = getgenv().Options.CustomThemeName and getgenv().Options.CustomThemeName.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Enter a theme name first", 2) end
             return
+        end
+        -- Check if theme already exists
+        local existing = ThemeManager:_listCustomThemes()
+        for _, n in ipairs(existing) do
+            if n == name then
+                if lib.Notify then lib:Notify("Theme already exists, use Overwrite", 2) end
+                return
+            end
         end
         if ThemeManager:SaveCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme saved: " .. name, 2) end
@@ -430,7 +450,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
     end)
 
-    makeSideBySideBtn("Load theme", 1, btnRow, function()
+    makeSideBySideBtn("Load theme", 1, row1, function()
         local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a custom theme first", 2) end
@@ -438,7 +458,6 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
         if ThemeManager:LoadCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme loaded: " .. name, 2) end
-            -- Update autoload display and save if enabled
             local autoToggle = getgenv().Toggles.AutoLoadTheme
             if autoToggle then
                 autoToggle:SetValueText(name)
@@ -449,6 +468,39 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
     end)
 
+    -- Row 2: Overwrite theme | Delete theme
+    local row2 = makeButtonRow("OverwriteDeleteRow", right)
+
+    makeSideBySideBtn("Overwrite theme", 0, row2, function()
+        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Select a custom theme first", 2) end
+            return
+        end
+        if ThemeManager:SaveCustomTheme(name) then
+            if lib.Notify then lib:Notify("Theme overwritten: " .. name, 2) end
+        end
+    end)
+
+    makeSideBySideBtn("Delete theme", 1, row2, function()
+        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        if name == "" then
+            if lib.Notify then lib:Notify("Select a custom theme first", 2) end
+            return
+        end
+        pcall(function()
+            if typeof(delfile) == "function" then
+                delfile(ThemeManager:_getThemesFolder() .. "/" .. name .. ".json")
+            end
+        end)
+        if lib.Notify then lib:Notify("Theme deleted: " .. name, 2) end
+        local newList = ThemeManager:_listCustomThemes()
+        if getgenv().Options.CustomThemeList then
+            getgenv().Options.CustomThemeList:SetValues(newList)
+        end
+    end)
+
+    -- Row 3: Refresh list (full-width)
     right:AddButton({
         Text = "Refresh list",
         Func = function()
