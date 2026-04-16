@@ -124,6 +124,13 @@ Library.Flags = {}
 Library.Connections = {}
 Library._unloadCallbacks = {}
 Library._openPopup = nil
+Library.DebugLogs = false
+
+function Library:Log(...)
+    if self.DebugLogs then
+        print("[JopLib]", ...)
+    end
+end
 
 -- ============================================================
 -- POPUP MANAGEMENT (only one dropdown/colorpicker open at a time)
@@ -348,8 +355,7 @@ function Library:UpdateKeybindFrame()
 
     local count = 0
     local showAll = not (self._keybindFilterActive)
-    local opts = getgenv().Options or {}
-    for flag, opt in pairs(opts) do
+    for flag, opt in pairs(self.Flags) do
         if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
             if not showAll and not opt._isActive then continue end
             count = count + 1
@@ -1047,6 +1053,13 @@ function Library:Unload()
         end
     end
     self.Connections = {}
+
+    -- Clean up global entries owned by this instance
+    for flag in pairs(self.Flags) do
+        if getgenv().Options[flag] then getgenv().Options[flag] = nil end
+        if getgenv().Toggles[flag] then getgenv().Toggles[flag] = nil end
+    end
+    self.Flags = {}
 
     if self.ScreenGui then
         self.ScreenGui:Destroy()

@@ -36,7 +36,9 @@ function SaveManager:IgnoreThemeSettings()
     self.IgnoreIndexes["KeybindListFilter"] = true
     self.IgnoreIndexes["CustomThemeName"] = true
     self.IgnoreIndexes["CustomThemeList"] = true
-    self.IgnoreIndexes["GUIDebugLogs"] = true
+    self.IgnoreIndexes["GUILogs"] = true
+    self.IgnoreIndexes["ShowWatermark"] = true
+    self.IgnoreIndexes["ShowKeybindFrame"] = true
     -- Color picker flags are numbered 1-6 (matching ThemeManager:ApplyToTab)
     for i = 1, 6 do
         self.IgnoreIndexes["ThemeColor_" .. i] = true
@@ -69,46 +71,36 @@ end
 
 function SaveManager:_serialize()
     local data = {}
+    local flags = self.Library and self.Library.Flags or {}
 
-    local toggles = getgenv().Toggles or {}
-    local options = getgenv().Options or {}
-
-    for flag, toggle in pairs(toggles) do
+    for flag, obj in pairs(flags) do
         if self.IgnoreIndexes[flag] then continue end
-        if toggle.Type == "Toggle" then
-            data[flag] = { type = "Toggle", value = toggle.Value }
-        end
-    end
+        local t = obj.Type
 
-    for flag, option in pairs(options) do
-        if self.IgnoreIndexes[flag] then continue end
-
-        if option.Type == "Slider" then
-            data[flag] = { type = "Slider", value = option.Value }
-
-        elseif option.Type == "Dropdown" then
-            if option.Multi then
+        if t == "Toggle" then
+            data[flag] = { type = "Toggle", value = obj.Value }
+        elseif t == "Slider" then
+            data[flag] = { type = "Slider", value = obj.Value }
+        elseif t == "Dropdown" then
+            if obj.Multi then
                 local selected = {}
-                for k, v in pairs(option.Value) do
-                    if v then table.insert(selected, k) end
+                for k, v in pairs(obj.Value) do
+                    if v then selected[#selected + 1] = k end
                 end
                 data[flag] = { type = "Dropdown", value = selected, multi = true }
             else
-                data[flag] = { type = "Dropdown", value = option.Value }
+                data[flag] = { type = "Dropdown", value = obj.Value }
             end
-
-        elseif option.Type == "Input" then
-            data[flag] = { type = "Input", value = option.Value }
-
-        elseif option.Type == "KeyPicker" then
-            data[flag] = { type = "KeyPicker", value = option.Value, mode = option.Mode }
-
-        elseif option.Type == "ColorPicker" then
-            local c = option.Value
+        elseif t == "Input" then
+            data[flag] = { type = "Input", value = obj.Value }
+        elseif t == "KeyPicker" then
+            data[flag] = { type = "KeyPicker", value = obj.Value, mode = obj.Mode }
+        elseif t == "ColorPicker" then
+            local c = obj.Value
             data[flag] = {
                 type = "ColorPicker",
                 value = { R = math.floor(c.R * 255), G = math.floor(c.G * 255), B = math.floor(c.B * 255) },
-                transparency = option.Transparency,
+                transparency = obj.Transparency,
             }
         end
     end
@@ -117,42 +109,33 @@ function SaveManager:_serialize()
 end
 
 function SaveManager:_deserialize(data)
-    local toggles = getgenv().Toggles or {}
-    local options = getgenv().Options or {}
+    local flags = self.Library and self.Library.Flags or {}
 
     for flag, entry in pairs(data) do
         if self.IgnoreIndexes[flag] then continue end
+        local obj = flags[flag]
+        if not obj then continue end
 
-        if entry.type == "Toggle" and toggles[flag] then
-            pcall(function() toggles[flag]:SetValue(entry.value) end)
-
-        elseif entry.type == "Slider" and options[flag] then
-            pcall(function() options[flag]:SetValue(entry.value) end)
-
-        elseif entry.type == "Dropdown" and options[flag] then
+        local t = entry.type
+        if t == "Toggle" or t == "Slider" or t == "Input" then
+            pcall(obj.SetValue, obj, entry.value)
+        elseif t == "Dropdown" then
             if entry.multi then
                 local val = {}
                 for _, k in ipairs(entry.value) do val[k] = true end
-                pcall(function() options[flag]:SetValue(val) end)
+                pcall(obj.SetValue, obj, val)
             else
-                pcall(function() options[flag]:SetValue(entry.value) end)
+                pcall(obj.SetValue, obj, entry.value)
             end
-
-        elseif entry.type == "Input" and options[flag] then
-            pcall(function() options[flag]:SetValue(entry.value) end)
-
-        elseif entry.type == "KeyPicker" and options[flag] then
-            pcall(function() options[flag]:SetValue({entry.value, entry.mode}) end)
-
-        elseif entry.type == "ColorPicker" and options[flag] then
+        elseif t == "KeyPicker" then
+            pcall(obj.SetValue, obj, {entry.value, entry.mode})
+        elseif t == "ColorPicker" then
             local c = entry.value
             if c then
-                pcall(function()
-                    options[flag]:SetValue(
-                        Color3.fromRGB(c.R or 255, c.G or 255, c.B or 255),
-                        entry.transparency
-                    )
-                end)
+                pcall(obj.SetValue, obj,
+                    Color3.fromRGB(c.R or 255, c.G or 255, c.B or 255),
+                    entry.transparency
+                )
             end
         end
     end

@@ -605,15 +605,6 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     -- ── Menu toggles (added to existing Menu groupbox if provided) ──
     local menu = menuGroupbox or tab:AddLeftGroupbox("Menu")
 
-    menu:AddToggle("GUIDebugLogs", {
-        Text = "GUI Debug Logs",
-        Default = false,
-    })
-
-    getgenv().Toggles.GUIDebugLogs:OnChanged(function()
-        lib.DebugLogs = getgenv().Toggles.GUIDebugLogs.Value
-    end)
-
     menu:AddToggle("ShowWatermark", {
         Text = "Show Watermark",
         Default = false,
@@ -642,6 +633,18 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     getgenv().Options.KeybindListFilter:OnChanged(function()
         lib._keybindFilterActive = (getgenv().Options.KeybindListFilter.Value == "Active Only")
+    end)
+
+    menu:AddDivider()
+    menu:AddLabel("Debug")
+
+    menu:AddToggle("GUILogs", {
+        Text = "GUI Logs",
+        Default = false,
+    })
+
+    getgenv().Toggles.GUILogs:OnChanged(function()
+        lib.DebugLogs = getgenv().Toggles.GUILogs.Value
     end)
 end
 
