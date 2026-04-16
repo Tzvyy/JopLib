@@ -7,6 +7,8 @@
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
 
 local function Create(class, props, children)
     local inst = Instance.new(class)
@@ -63,11 +65,14 @@ function Elements:Setup(Library)
         local default = options.Default or false
         local text = options.Text or flag
         local callback = options.Callback
+        local risky = options.Risky or false
 
         local toggleObj = {
             Value = default,
             Flag = flag,
             Type = "Toggle",
+            Risky = risky,
+            Addons = {},
             _callbacks = {},
         }
 
@@ -80,12 +85,25 @@ function Elements:Setup(Library)
             self.Value = val
             if self._box then
                 Tween(self._box, {BackgroundColor3 = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff}, 0.15):Play()
+                -- Update registry mapping for toggle box
+                local regData = lib.RegistryMap[self._box]
+                if regData then
+                    regData.Properties.BackgroundColor3 = val and "ToggleOn" or "ToggleOff"
+                end
+            end
+            -- Sync KeyPicker addon toggle state
+            for _, addon in ipairs(self.Addons or {}) do
+                if addon.Type == "KeyPicker" and addon.SyncToggleState then
+                    addon.Toggled = val
+                    if addon.Update then addon:Update() end
+                end
             end
             if lib.DebugLogs then
                 print("[JopLib] Toggle '", flag, "' set to:", val)
             end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
-            if callback then task.spawn(callback, val) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+            if callback then lib:SafeCallback(callback, val) end
+            lib:UpdateDependencyBoxes()
         end
 
         local container = Create("Frame", {
@@ -111,18 +129,28 @@ function Elements:Setup(Library)
         local hasValue = options.ValueText and options.ValueText ~= ""
         local labelWidth = hasValue and UDim2.new(1, -120, 1, 0) or UDim2.new(1, -24, 1, 0)
 
-        Create("TextLabel", {
+        lib:AddToRegistry(box, { BackgroundColor3 = default and "ToggleOn" or "ToggleOff" })
+        local boxStroke = box:FindFirstChildOfClass("UIStroke")
+        if boxStroke then lib:AddToRegistry(boxStroke, { Color = "ElementBorder" }) end
+
+        local toggleLabel = Create("TextLabel", {
             Name = "Label",
             Size = labelWidth,
             Position = UDim2.new(0, 22, 0, 0),
             BackgroundTransparency = 1,
             Text = text,
-            TextColor3 = lib.Theme.FontPrimary,
+            TextColor3 = risky and lib.RiskColor or lib.Theme.FontPrimary,
             FontFace = lib.FontRegular,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = container,
         })
+        if risky then
+            lib:AddToRegistry(toggleLabel, { TextColor3 = "RiskColor" })
+        else
+            lib:AddToRegistry(toggleLabel, { TextColor3 = "FontPrimary" })
+        end
+        toggleObj.TextLabel = toggleLabel
 
         local valueLabel = nil
         if hasValue then
@@ -138,6 +166,7 @@ function Elements:Setup(Library)
                 TextXAlignment = Enum.TextXAlignment.Right,
                 Parent = container,
             })
+            lib:AddToRegistry(valueLabel, { TextColor3 = "FontSecondary" })
         end
 
         toggleObj._box = box
@@ -175,8 +204,14 @@ function Elements:Setup(Library)
             toggleObj:SetValue(not toggleObj.Value)
         end)
 
+        if type(options.Tooltip) == "string" then
+            lib:AddToolTip(options.Tooltip, container)
+        end
+
         getgenv().Toggles[flag] = toggleObj
         lib.Flags[flag] = toggleObj
+
+        toggleObj._cpFlags = {}
 
         function toggleObj:_layoutAccessories()
             local rightOffset = 2
@@ -188,9 +223,10 @@ function Elements:Setup(Library)
                     rightOffset = rightOffset + 55 + 4
                 end
             end
-            -- ColorPicker is to the left of keybind
-            if self._cpFlag then
-                local cpPreview = self._container:FindFirstChild("ColorPreview_" .. self._cpFlag)
+            -- ColorPickers right-to-left
+            for i = #self._cpFlags, 1, -1 do
+                local cpFlag = self._cpFlags[i]
+                local cpPreview = self._container:FindFirstChild("ColorPreview_" .. cpFlag)
                 if cpPreview then
                     cpPreview.Position = UDim2.new(1, -(rightOffset + 18), 0, 2)
                     rightOffset = rightOffset + 18 + 4
@@ -203,15 +239,17 @@ function Elements:Setup(Library)
             kpOptions.SyncToggleState = flag
             local kp = Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, lib)
             toggleObj._kpFlag = kpFlag
+            table.insert(toggleObj.Addons, kp)
             toggleObj:_layoutAccessories()
-            return kp
+            return toggleObj
         end
 
         function toggleObj:AddColorPicker(cpFlag, cpOptions)
             local cp = Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, lib)
-            toggleObj._cpFlag = cpFlag
+            table.insert(self._cpFlags, cpFlag)
+            table.insert(toggleObj.Addons, cp)
             toggleObj:_layoutAccessories()
-            return cp
+            return toggleObj
         end
 
         return toggleObj
@@ -275,8 +313,8 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Slider '", flag, "' set to:", val)
             end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
-            if callback then task.spawn(callback, val) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+            if callback then lib:SafeCallback(callback, val) end
         end
 
         local containerHeight = compact and 22 or 36
@@ -289,7 +327,7 @@ function Elements:Setup(Library)
         })
 
         if not compact then
-            Create("TextLabel", {
+            local sliderLabel = Create("TextLabel", {
                 Name = "Label",
                 Size = UDim2.new(0.6, 0, 0, 16),
                 BackgroundTransparency = 1,
@@ -300,6 +338,7 @@ function Elements:Setup(Library)
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = container,
             })
+            lib:AddToRegistry(sliderLabel, { TextColor3 = "FontPrimary" })
         end
 
         local valText
@@ -327,6 +366,10 @@ function Elements:Setup(Library)
             }),
         })
 
+        lib:AddToRegistry(valueBg, { BackgroundColor3 = "ElementBg" })
+        local vbStroke = valueBg:FindFirstChildOfClass("UIStroke")
+        if vbStroke then lib:AddToRegistry(vbStroke, { Color = "ElementBorder" }) end
+
         local valueLabel = Create("TextButton", {
             Name = "Value",
             Size = UDim2.new(0, 0, 1, 0),
@@ -338,6 +381,7 @@ function Elements:Setup(Library)
             TextSize = 13,
             Parent = valueBg,
         })
+        lib:AddToRegistry(valueLabel, { TextColor3 = "FontSecondary" })
 
         local sliderY = compact and 0 or 20
         local sliderBg = Create("Frame", {
@@ -351,6 +395,9 @@ function Elements:Setup(Library)
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
+        lib:AddToRegistry(sliderBg, { BackgroundColor3 = "ElementBg" })
+        local sbStroke = sliderBg:FindFirstChildOfClass("UIStroke")
+        if sbStroke then lib:AddToRegistry(sbStroke, { Color = "ElementBorder" }) end
 
         local pct = (default - min) / (max - min)
         local fill = Create("Frame", {
@@ -362,6 +409,11 @@ function Elements:Setup(Library)
         }, {
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
         })
+        lib:AddToRegistry(fill, { BackgroundColor3 = "SliderFill" })
+
+        if type(options.Tooltip) == "string" then
+            lib:AddToolTip(options.Tooltip, sliderBg)
+        end
 
         sliderObj._fill = fill
         sliderObj._valueLabel = valueLabel
@@ -519,6 +571,9 @@ function Elements:Setup(Library)
                 Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             })
+            lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
+            local btnStroke = btn:FindFirstChildOfClass("UIStroke")
+            if btnStroke then lib:AddToRegistry(btnStroke, { Color = "ElementBorder" }) end
 
             local confirming = false
             btn.MouseButton1Click:Connect(function()
@@ -538,7 +593,7 @@ function Elements:Setup(Library)
                 confirming = false
                 btn.Text = btnText
                 btn.TextColor3 = lib.Theme.FontPrimary
-                if btnFunc then task.spawn(btnFunc) end
+                if btnFunc then lib:SafeCallback(btnFunc) end
             end)
 
             btn.MouseEnter:Connect(function()
@@ -582,16 +637,27 @@ function Elements:Setup(Library)
         local values = options.Values or {}
         local text = options.Text or flag
         local multi = options.Multi or false
+        local allowNull = options.AllowNull or false
         local callback = options.Callback
         local default = options.Default
+        local specialType = options.SpecialType
 
-        if options.SpecialType == "Player" then
+        if specialType == "Player" then
             values = {}
-            for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-                if p ~= game:GetService("Players").LocalPlayer then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= Players.LocalPlayer then
                     table.insert(values, p.Name)
                 end
             end
+            table.sort(values)
+            allowNull = true
+        elseif specialType == "Team" then
+            values = {}
+            for _, t in ipairs(Teams:GetTeams()) do
+                table.insert(values, t.Name)
+            end
+            table.sort(values)
+            allowNull = true
         end
 
         local currentValue
@@ -647,8 +713,8 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Dropdown '", flag, "' set to:", tostring(self.Value))
             end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
-            if callback then task.spawn(callback, self.Value) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+            if callback then lib:SafeCallback(callback, self.Value) end
         end
 
         function dropObj:SetValues(newValues)
@@ -665,7 +731,7 @@ function Elements:Setup(Library)
             Parent = self._container,
         })
 
-        Create("TextLabel", {
+        local dropLabel = Create("TextLabel", {
             Name = "Label",
             Size = UDim2.new(1, 0, 0, 16),
             BackgroundTransparency = 1,
@@ -676,6 +742,7 @@ function Elements:Setup(Library)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = container,
         })
+        lib:AddToRegistry(dropLabel, { TextColor3 = "FontPrimary" })
 
         local dropBtn = Create("TextButton", {
             Name = "DropBtn",
@@ -689,6 +756,9 @@ function Elements:Setup(Library)
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
+        lib:AddToRegistry(dropBtn, { BackgroundColor3 = "ElementBg" })
+        local dbStroke = dropBtn:FindFirstChildOfClass("UIStroke")
+        if dbStroke then lib:AddToRegistry(dbStroke, { Color = "ElementBorder" }) end
 
         local displayLabel = Create("TextLabel", {
             Name = "Display",
@@ -703,6 +773,7 @@ function Elements:Setup(Library)
             TextTruncate = Enum.TextTruncate.AtEnd,
             Parent = dropBtn,
         })
+        lib:AddToRegistry(displayLabel, { TextColor3 = "FontPrimary" })
 
         local arrow = Create("TextLabel", {
             Name = "Arrow",
@@ -715,6 +786,7 @@ function Elements:Setup(Library)
             TextSize = 11,
             Parent = dropBtn,
         })
+        lib:AddToRegistry(arrow, { TextColor3 = "FontSecondary" })
 
         dropObj._displayLabel = displayLabel
 
@@ -788,12 +860,16 @@ function Elements:Setup(Library)
                         item.BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg
                         item.TextColor3 = sel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
                     else
-                        dropObj:SetValue(val)
+                        if allowNull and dropObj.Value == val then
+                            dropObj:SetValue(nil)
+                        else
+                            dropObj:SetValue(val)
+                        end
                         -- Update all items highlight without closing
                         if dropList then
                             for _, child in ipairs(dropList:GetChildren()) do
                                 if child:IsA("TextButton") then
-                                    local isSel = (child.Name == "Item_" .. val)
+                                    local isSel = (child.Name == "Item_" .. tostring(dropObj.Value))
                                     child.BackgroundColor3 = isSel and lib.Theme.Accent or lib.Theme.ElementBg
                                     child.BackgroundTransparency = isSel and 0.7 or 0
                                     child.TextColor3 = isSel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
@@ -848,8 +924,47 @@ function Elements:Setup(Library)
             end
         end)
 
+        if type(options.Tooltip) == "string" then
+            lib:AddToolTip(options.Tooltip, dropBtn)
+        end
+
         getgenv().Options[flag] = dropObj
         lib.Flags[flag] = dropObj
+
+        -- Auto-refresh for Player/Team dropdowns
+        if specialType == "Player" then
+            local function refreshPlayers()
+                local newValues = {}
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= Players.LocalPlayer then
+                        table.insert(newValues, p.Name)
+                    end
+                end
+                table.sort(newValues)
+                dropObj:SetValues(newValues)
+                -- If current value left the game, set to nil
+                if dropObj.Value and not table.find(newValues, dropObj.Value) then
+                    dropObj:SetValue(nil)
+                end
+            end
+            lib:GiveSignal(Players.PlayerAdded:Connect(refreshPlayers))
+            lib:GiveSignal(Players.PlayerRemoving:Connect(refreshPlayers))
+        elseif specialType == "Team" then
+            local function refreshTeams()
+                local newValues = {}
+                for _, t in ipairs(Teams:GetTeams()) do
+                    table.insert(newValues, t.Name)
+                end
+                table.sort(newValues)
+                dropObj:SetValues(newValues)
+                if dropObj.Value and not table.find(newValues, dropObj.Value) then
+                    dropObj:SetValue(nil)
+                end
+            end
+            lib:GiveSignal(Teams.ChildAdded:Connect(refreshTeams))
+            lib:GiveSignal(Teams.ChildRemoved:Connect(refreshTeams))
+        end
+
         return dropObj
     end
 
@@ -887,8 +1002,8 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Input '", flag, "' set to:", tostring(val))
             end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, val) end
-            if callback then task.spawn(callback, val) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+            if callback then lib:SafeCallback(callback, val) end
         end
 
         local container = Create("Frame", {
@@ -899,7 +1014,7 @@ function Elements:Setup(Library)
             Parent = self._container,
         })
 
-        Create("TextLabel", {
+        local inputLabel = Create("TextLabel", {
             Name = "Label",
             Size = UDim2.new(1, 0, 0, 16),
             BackgroundTransparency = 1,
@@ -910,6 +1025,7 @@ function Elements:Setup(Library)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = container,
         })
+        lib:AddToRegistry(inputLabel, { TextColor3 = "FontPrimary" })
 
         local textBox = Create("TextBox", {
             Name = "TextBox",
@@ -931,6 +1047,10 @@ function Elements:Setup(Library)
             Create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
         })
 
+        lib:AddToRegistry(textBox, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
+        local tbStroke = textBox:FindFirstChildOfClass("UIStroke")
+        if tbStroke then lib:AddToRegistry(tbStroke, { Color = "ElementBorder" }) end
+
         inputObj._textBox = textBox
 
         local function processInput(txt)
@@ -946,6 +1066,10 @@ function Elements:Setup(Library)
             textBox.FocusLost:Connect(function() processInput(textBox.Text) end)
         else
             textBox:GetPropertyChangedSignal("Text"):Connect(function() processInput(textBox.Text) end)
+        end
+
+        if type(options.Tooltip) == "string" then
+            lib:AddToolTip(options.Tooltip, container)
         end
 
         getgenv().Options[flag] = inputObj
@@ -981,18 +1105,49 @@ function Elements:Setup(Library)
             labelInst.AutomaticSize = Enum.AutomaticSize.None
         end
 
+        lib:AddToRegistry(labelInst, { TextColor3 = "FontSecondary" })
+
         local labelObj = {}
         labelObj._label = labelInst
         labelObj._container = labelInst
+        labelObj._cpFlags = {}
+        labelObj.Addons = {}
 
         function labelObj:SetText(newText) labelInst.Text = newText end
 
+        function labelObj:_layoutAccessories()
+            local rightOffset = 2
+            if self._kpFlag then
+                local kpFrame = self._container:FindFirstChild("KeyPicker_" .. self._kpFlag)
+                if kpFrame then
+                    kpFrame.Position = UDim2.new(1, -(rightOffset + 55), 0, 0)
+                    rightOffset = rightOffset + 55 + 4
+                end
+            end
+            for i = #self._cpFlags, 1, -1 do
+                local cpFlag = self._cpFlags[i]
+                local cpPreview = self._container:FindFirstChild("ColorPreview_" .. cpFlag)
+                if cpPreview then
+                    cpPreview.Position = UDim2.new(1, -(rightOffset + 18), 0, 2)
+                    rightOffset = rightOffset + 18 + 4
+                end
+            end
+        end
+
         function labelObj:AddColorPicker(cpFlag, cpOptions)
-            return Groupbox._addColorPickerToContainer(labelInst, cpFlag, cpOptions, lib)
+            local cp = Groupbox._addColorPickerToContainer(labelInst, cpFlag, cpOptions, lib)
+            table.insert(self._cpFlags, cpFlag)
+            table.insert(self.Addons, cp)
+            self:_layoutAccessories()
+            return self
         end
 
         function labelObj:AddKeyPicker(kpFlag, kpOptions)
-            return Groupbox._addKeyPickerToContainer(labelInst, kpFlag, kpOptions, lib)
+            local kp = Groupbox._addKeyPickerToContainer(labelInst, kpFlag, kpOptions, lib)
+            self._kpFlag = kpFlag
+            table.insert(self.Addons, kp)
+            self:_layoutAccessories()
+            return self
         end
 
         return labelObj
@@ -1006,20 +1161,21 @@ function Elements:Setup(Library)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        Create("Frame", {
+        local divFrame = Create("Frame", {
             Name = "Divider",
             Size = UDim2.new(1, 0, 0, 9),
             BackgroundTransparency = 1,
             LayoutOrder = order,
             Parent = self._container,
-        }, {
-            Create("Frame", {
-                Size = UDim2.new(1, 0, 0, 1),
-                Position = UDim2.new(0, 0, 0.5, 0),
-                BackgroundColor3 = lib.Theme.Border,
-                BorderSizePixel = 0,
-            }),
         })
+        local divLine = Create("Frame", {
+            Size = UDim2.new(1, 0, 0, 1),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            BackgroundColor3 = lib.Theme.Border,
+            BorderSizePixel = 0,
+            Parent = divFrame,
+        })
+        lib:AddToRegistry(divLine, { BackgroundColor3 = "Border" })
     end
 
     -- ============================================================
@@ -1035,6 +1191,7 @@ function Elements:Setup(Library)
         local syncToggle = options.SyncToggleState
         local cbCallback = options.Callback
         local changedCb = options.ChangedCallback
+        local allowedModes = options.Modes or {"Hold", "Toggle", "Always"}
 
         local kpObj = {
             Value = default,
@@ -1043,6 +1200,8 @@ function Elements:Setup(Library)
             Mode = mode,
             Text = text,
             NoUI = noUI,
+            SyncToggleState = syncToggle,
+            Modes = allowedModes,
             _isActive = false,
             _callbacks = {},
             _clickCallbacks = {},
@@ -1071,8 +1230,8 @@ function Elements:Setup(Library)
                 self.Value = data
             end
             if self._keyLabel then self._keyLabel.Text = self.Value end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
-            if changedCb then task.spawn(changedCb, self.Value) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+            if changedCb then lib:SafeCallback(changedCb, self.Value) end
         end
 
         local kpFrame = Create("Frame", {
@@ -1098,6 +1257,9 @@ function Elements:Setup(Library)
             Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
+        lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontSecondary" })
+        local kbStroke = keyBtn:FindFirstChildOfClass("UIStroke")
+        if kbStroke then lib:AddToRegistry(kbStroke, { Color = "ElementBorder" }) end
 
         kpObj._keyLabel = keyBtn
 
@@ -1118,7 +1280,7 @@ function Elements:Setup(Library)
 
             local modeMenu = Create("Frame", {
                 Name = "ModeMenu",
-                Size = UDim2.new(0, 80, 0, 66),
+                Size = UDim2.new(0, 80, 0, #allowedModes * 22),
                 Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2),
                 BackgroundColor3 = lib.Theme.ElementBg,
                 BorderSizePixel = 0,
@@ -1134,8 +1296,7 @@ function Elements:Setup(Library)
                 modeMenu:Destroy()
             end
 
-            local modes = {"Hold", "Toggle", "Always"}
-            for i, m in ipairs(modes) do
+            for i, m in ipairs(allowedModes) do
                 local mBtn = Create("TextButton", {
                     Size = UDim2.new(1, 0, 0, 22),
                     BackgroundColor3 = kpObj.Mode == m and lib.Theme.Accent or lib.Theme.ElementBg,
@@ -1183,11 +1344,11 @@ function Elements:Setup(Library)
             if keyName == kpObj.Value then
                 if kpObj.Mode == "Toggle" then
                     kpObj._isActive = not kpObj._isActive
-                    for _, fn in ipairs(kpObj._clickCallbacks) do task.spawn(fn, kpObj._isActive) end
-                    if cbCallback then task.spawn(cbCallback, kpObj._isActive) end
+                    for _, fn in ipairs(kpObj._clickCallbacks) do lib:SafeCallback(fn, kpObj._isActive) end
+                    if cbCallback then lib:SafeCallback(cbCallback, kpObj._isActive) end
                 elseif kpObj.Mode == "Hold" then
                     kpObj._isActive = true
-                    if cbCallback then task.spawn(cbCallback, true) end
+                    if cbCallback then lib:SafeCallback(cbCallback, true) end
                 end
                 if syncToggle and getgenv().Toggles[syncToggle] then
                     getgenv().Toggles[syncToggle]:SetValue(kpObj:GetState())
@@ -1201,7 +1362,7 @@ function Elements:Setup(Library)
             local keyName = GetKeyName(input)
             if keyName == kpObj.Value and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
-                if cbCallback then task.spawn(cbCallback, false) end
+                if cbCallback then lib:SafeCallback(cbCallback, false) end
                 if syncToggle and getgenv().Toggles[syncToggle] then
                     getgenv().Toggles[syncToggle]:SetValue(false)
                 end
@@ -1226,7 +1387,7 @@ function Elements:Setup(Library)
             Parent = self._container,
         })
 
-        Create("TextLabel", {
+        local kpLabel = Create("TextLabel", {
             Name = "Label",
             Size = UDim2.new(1, -60, 1, 0),
             BackgroundTransparency = 1,
@@ -1237,6 +1398,7 @@ function Elements:Setup(Library)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = container,
         })
+        lib:AddToRegistry(kpLabel, { TextColor3 = "FontPrimary" })
 
         return Groupbox._addKeyPickerToContainer(container, flag, options, lib)
     end
@@ -1272,8 +1434,8 @@ function Elements:Setup(Library)
                 self._preview.BackgroundColor3 = self.Value
                 self._preview.BackgroundTransparency = self.Transparency or 0
             end
-            for _, fn in ipairs(self._callbacks) do task.spawn(fn, self.Value) end
-            if callback then task.spawn(callback, self.Value) end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+            if callback then lib:SafeCallback(callback, self.Value) end
         end
 
         function cpObj:SetValueRGB(color)
@@ -1291,6 +1453,9 @@ function Elements:Setup(Library)
             Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
+
+        local cpStroke = preview:FindFirstChildOfClass("UIStroke")
+        if cpStroke then lib:AddToRegistry(cpStroke, { Color = "ElementBorder" }) end
 
         cpObj._preview = preview
 
@@ -1790,7 +1955,7 @@ function Elements:Setup(Library)
             Parent = self._container,
         })
 
-        Create("TextLabel", {
+        local cpLabel = Create("TextLabel", {
             Name = "Label",
             Size = UDim2.new(1, -24, 1, 0),
             BackgroundTransparency = 1,
@@ -1801,6 +1966,7 @@ function Elements:Setup(Library)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = container,
         })
+        lib:AddToRegistry(cpLabel, { TextColor3 = "FontPrimary" })
 
         return Groupbox._addColorPickerToContainer(container, flag, options, lib)
     end
@@ -1838,34 +2004,28 @@ function Elements:Setup(Library)
             return self._elementOrder
         end
 
-        function depBox:SetupDependencies(deps)
-            self._dependencies = deps
-
-            local function check()
-                local visible = true
-                for _, dep in ipairs(deps) do
-                    local toggle = dep[1]
-                    local wantState = dep[2]
-                    if toggle then
-                        if wantState then
-                            if not toggle.Value then visible = false end
-                        else
-                            if toggle.Value then visible = false end
-                        end
+        function depBox:Update()
+            local visible = true
+            for _, dep in ipairs(self._dependencies) do
+                local toggle = dep[1]
+                local wantState = dep[2]
+                if toggle then
+                    if wantState then
+                        if not toggle.Value then visible = false end
+                    else
+                        if toggle.Value then visible = false end
                     end
                 end
-                container.Visible = visible
             end
-
-            for _, dep in ipairs(deps) do
-                local toggle = dep[1]
-                if toggle and toggle.OnChanged then
-                    toggle:OnChanged(function() check() end)
-                end
-            end
-
-            check()
+            container.Visible = visible
         end
+
+        function depBox:SetupDependencies(deps)
+            self._dependencies = deps
+            self:Update()
+        end
+
+        table.insert(lib.DependencyBoxes, depBox)
 
         depBox.AddToggle = Groupbox.AddToggle
         depBox.AddSlider = Groupbox.AddSlider

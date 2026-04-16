@@ -9,6 +9,11 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
+local TextService = game:GetService("TextService")
+local Teams = game:GetService("Teams")
+local Mouse = LocalPlayer:GetMouse()
+
+local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
 
 -- ============================================================
 -- GLOBALS: Toggles / Options tables (like Linoria)
@@ -136,11 +141,145 @@ Library.Flags = {}
 Library.Connections = {}
 Library._unloadCallbacks = {}
 Library._openPopup = nil
+Library.NotifyOnError = true
+Library.RiskColor = Color3.fromRGB(255, 50, 50)
+
+-- Registry-based theme system
+Library.Registry = {}
+Library.RegistryMap = {}
+Library.HudRegistry = {}
+Library.DependencyBoxes = {}
 
 function Library:Log(...)
     if self.DebugLogs then
         print("[JopLib]", ...)
     end
+end
+
+-- SafeCallback: wraps user callbacks, shows errors as notifications
+function Library:SafeCallback(f, ...)
+    if not f then return end
+    if not self.NotifyOnError then
+        return f(...)
+    end
+    local success, err = pcall(f, ...)
+    if not success then
+        local _, i = (err or ""):find(":%d+: ")
+        local msg = i and err:sub(i + 1) or err
+        self:Notify("Callback error: " .. tostring(msg), 5)
+    end
+end
+
+-- GiveSignal: register an external connection for cleanup on Unload
+function Library:GiveSignal(signal)
+    table.insert(self.Connections, signal)
+end
+
+-- Registry: track instances with theme property mappings
+function Library:AddToRegistry(instance, properties, isHud)
+    local data = {
+        Instance = instance,
+        Properties = properties,
+    }
+    table.insert(self.Registry, data)
+    self.RegistryMap[instance] = data
+    if isHud then
+        table.insert(self.HudRegistry, data)
+    end
+end
+
+function Library:RemoveFromRegistry(instance)
+    local data = self.RegistryMap[instance]
+    if data then
+        for idx = #self.Registry, 1, -1 do
+            if self.Registry[idx] == data then
+                table.remove(self.Registry, idx)
+                break
+            end
+        end
+        for idx = #self.HudRegistry, 1, -1 do
+            if self.HudRegistry[idx] == data then
+                table.remove(self.HudRegistry, idx)
+                break
+            end
+        end
+        self.RegistryMap[instance] = nil
+    end
+end
+
+function Library:UpdateColorsUsingRegistry()
+    for _, obj in ipairs(self.Registry) do
+        if obj.Instance and obj.Instance.Parent then
+            for prop, colorKey in pairs(obj.Properties) do
+                if type(colorKey) == "string" then
+                    local val = self.Theme[colorKey] or self[colorKey]
+                    if val then obj.Instance[prop] = val end
+                elseif type(colorKey) == "function" then
+                    obj.Instance[prop] = colorKey()
+                end
+            end
+        end
+    end
+end
+
+function Library:UpdateDependencyBoxes()
+    for _, depbox in ipairs(self.DependencyBoxes) do
+        if depbox.Update then depbox:Update() end
+    end
+end
+
+-- Tooltip system
+function Library:GetTextBounds(text, font, size, resolution)
+    local bounds = TextService:GetTextSize(text, size, font or Enum.Font.Code, resolution or Vector2.new(1920, 1080))
+    return bounds.X, bounds.Y
+end
+
+function Library:AddToolTip(text, hoverInstance)
+    local tipFrame = Create("Frame", {
+        BackgroundColor3 = self.Theme.Background,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        ZIndex = 200,
+        Visible = false,
+        Parent = self.ScreenGui or CoreGui,
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("UIPadding", {
+            PaddingLeft = UDim.new(0, 6),
+            PaddingRight = UDim.new(0, 6),
+            PaddingTop = UDim.new(0, 4),
+            PaddingBottom = UDim.new(0, 4),
+        }),
+        Create("TextLabel", {
+            BackgroundTransparency = 1,
+            Text = text,
+            TextColor3 = self.Theme.FontPrimary,
+            FontFace = self.FontRegular,
+            TextSize = 13,
+            AutomaticSize = Enum.AutomaticSize.XY,
+        }),
+    })
+
+    self:AddToRegistry(tipFrame, { BackgroundColor3 = "Background" })
+
+    local isHovering = false
+    hoverInstance.MouseEnter:Connect(function()
+        isHovering = true
+        tipFrame.Position = UDim2.fromOffset(Mouse.X + 15, Mouse.Y + 12)
+        tipFrame.Visible = true
+        while isHovering do
+            RunService.Heartbeat:Wait()
+            tipFrame.Position = UDim2.fromOffset(Mouse.X + 15, Mouse.Y + 12)
+        end
+    end)
+    hoverInstance.MouseLeave:Connect(function()
+        isHovering = false
+        tipFrame.Visible = false
+    end)
+
+    return tipFrame
 end
 
 -- ============================================================
@@ -166,12 +305,14 @@ function Library:Notify(text, duration)
     duration = duration or 3
 
     if not NotificationHolder then
-        NotificationHolder = Create("ScreenGui", {
+        local nGui = Create("ScreenGui", {
             Name = "JopLibNotifications",
             ResetOnSpawn = false,
             ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            Parent = CoreGui,
         })
+        ProtectGui(nGui)
+        nGui.Parent = CoreGui
+        NotificationHolder = nGui
         Create("Frame", {
             Name = "Holder",
             Size = UDim2.new(0, 300, 1, 0),
@@ -217,7 +358,11 @@ function Library:Notify(text, duration)
         }),
     })
 
+    self:AddToRegistry(notif, { BackgroundColor3 = "Background" })
+    local notifStroke = notif:FindFirstChildOfClass("UIStroke")
+    if notifStroke then self:AddToRegistry(notifStroke, { Color = "Border" }) end
     local textLabel = notif:FindFirstChild("Text")
+    if textLabel then self:AddToRegistry(textLabel, { TextColor3 = "FontPrimary" }) end
     local textHeight = textLabel.TextBounds.Y + 16
     textHeight = math.max(textHeight, 30)
 
@@ -242,8 +387,9 @@ function Library:CreateWatermark()
         Name = "JopLibWatermark",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = CoreGui,
     })
+    ProtectGui(gui)
+    gui.Parent = CoreGui
 
     local frame = Create("Frame", {
         Name = "WatermarkFrame",
@@ -275,6 +421,12 @@ function Library:CreateWatermark()
         }),
     })
 
+    self:AddToRegistry(frame, { BackgroundColor3 = "Background" }, true)
+    local wmStroke = frame:FindFirstChildOfClass("UIStroke")
+    if wmStroke then self:AddToRegistry(wmStroke, { Color = "Border" }, true) end
+    local wmText = frame:FindFirstChild("Text", true)
+    if wmText then self:AddToRegistry(wmText, { TextColor3 = "FontSecondary" }, true) end
+
     MakeDraggable(frame)
     self._watermarkGui = gui
     self._watermarkFrame = frame
@@ -302,8 +454,9 @@ function Library:CreateKeybindFrame()
         Name = "JopLibKeybinds",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = CoreGui,
     })
+    ProtectGui(gui)
+    gui.Parent = CoreGui
 
     local frame = Create("Frame", {
         Name = "KeybindFrame",
@@ -344,6 +497,12 @@ function Library:CreateKeybindFrame()
             Padding = UDim.new(0, 2),
         }),
     })
+
+    self:AddToRegistry(frame, { BackgroundColor3 = "Background" }, true)
+    local kbStroke = frame:FindFirstChildOfClass("UIStroke")
+    if kbStroke then self:AddToRegistry(kbStroke, { Color = "Border" }, true) end
+    local kbTitle = frame:FindFirstChild("Title", true)
+    if kbTitle then self:AddToRegistry(kbTitle, { TextColor3 = "FontSecondary" }, true) end
 
     MakeDraggable(frame)
     self._keybindGui = gui
@@ -432,9 +591,17 @@ function Library:CreateWindow(options)
         Name = "JopLib",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        Parent = CoreGui,
     })
+    ProtectGui(screenGui)
+    screenGui.Parent = CoreGui
     self.ScreenGui = screenGui
+
+    -- Auto-remove from registry when descendants are destroyed
+    self:GiveSignal(screenGui.DescendantRemoving:Connect(function(inst)
+        if self.RegistryMap[inst] then
+            self:RemoveFromRegistry(inst)
+        end
+    end))
 
     -- Popup holder (renders dropdowns/colorpickers above everything)
     local popupHolder = Create("Frame", {
@@ -505,6 +672,9 @@ function Library:CreateWindow(options)
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
     })
     self.MainFrame = mainFrame
+    self:AddToRegistry(mainFrame, { BackgroundColor3 = "Background" })
+    local mfStroke = mainFrame:FindFirstChildOfClass("UIStroke")
+    if mfStroke then self:AddToRegistry(mfStroke, { Color = "Border" }) end
 
     if not autoShow then
         mainFrame.Visible = false
@@ -530,7 +700,7 @@ function Library:CreateWindow(options)
         Parent = titleBar,
     })
 
-    Create("Frame", {
+    local accentLine = Create("Frame", {
         Name = "AccentLine",
         Size = UDim2.new(1, 0, 0, 2),
         Position = UDim2.new(0, 0, 1, 0),
@@ -538,10 +708,12 @@ function Library:CreateWindow(options)
         BorderSizePixel = 0,
         Parent = titleBar,
     })
+    self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
+    self:AddToRegistry(accentLine, { BackgroundColor3 = "Accent" })
 
     MakeDraggable(mainFrame, titleBar)
 
-    Create("TextLabel", {
+    local titleLabel = Create("TextLabel", {
         Name = "TitleText",
         Size = UDim2.new(1, -16, 1, 0),
         Position = UDim2.new(0, 10, 0, 0),
@@ -553,6 +725,8 @@ function Library:CreateWindow(options)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = titleBar,
     })
+    self:AddToRegistry(titleLabel, { TextColor3 = "FontPrimary" })
+    self._titleLabel = titleLabel
 
     -- Tab Bar
     local tabBarContainer = Create("Frame", {
@@ -563,6 +737,7 @@ function Library:CreateWindow(options)
         BorderSizePixel = 0,
         Parent = mainFrame,
     })
+    self:AddToRegistry(tabBarContainer, { BackgroundColor3 = "TabBackground" })
 
     local tabBarScroll = Create("ScrollingFrame", {
         Name = "TabBarScroll",
@@ -685,6 +860,10 @@ function Library:CreateWindow(options)
             Parent = contentContainer,
         })
 
+        Library:AddToRegistry(tabBtn, { BackgroundColor3 = "TabInactive" })
+        local tabLabel = tabBtn:FindFirstChild("Label")
+        if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontSecondary" }) end
+
         local leftColumn = Create("ScrollingFrame", {
             Name = "LeftColumn",
             Size = UDim2.new(0.5, -4, 1, 0),
@@ -710,6 +889,8 @@ function Library:CreateWindow(options)
                 PaddingBottom = UDim.new(0, 2),
             }),
         })
+
+        Library:AddToRegistry(leftColumn, { ScrollBarImageColor3 = "Accent" })
 
         local rightColumn = Create("ScrollingFrame", {
             Name = "RightColumn",
@@ -737,6 +918,8 @@ function Library:CreateWindow(options)
             }),
         })
 
+        Library:AddToRegistry(rightColumn, { ScrollBarImageColor3 = "Accent" })
+
         local Tab = {}
         Tab.Name = tabName
         Tab._page = tabPage
@@ -751,7 +934,7 @@ function Library:CreateWindow(options)
         local function CreateGroupbox(name, parent)
             Tab._groupOrder = Tab._groupOrder + 1
 
-            local groupbox = Create("Frame", {
+            local gbFrame = Create("Frame", {
                 Name = "Groupbox_" .. name,
                 Size = UDim2.new(1, 0, 0, 0),
                 AutomaticSize = Enum.AutomaticSize.Y,
@@ -774,7 +957,11 @@ function Library:CreateWindow(options)
                 }),
             })
 
-            Create("TextLabel", {
+            Library:AddToRegistry(gbFrame, { BackgroundColor3 = "GroupboxBg" })
+            local gbStroke = gbFrame:FindFirstChildOfClass("UIStroke")
+            if gbStroke then Library:AddToRegistry(gbStroke, { Color = "Border" }) end
+
+            local groupTitle = Create("TextLabel", {
                 Name = "GroupTitle",
                 Size = UDim2.new(1, 0, 0, 18),
                 BackgroundTransparency = 1,
@@ -784,8 +971,9 @@ function Library:CreateWindow(options)
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 LayoutOrder = 0,
-                Parent = groupbox,
+                Parent = gbFrame,
             })
+            Library:AddToRegistry(groupTitle, { TextColor3 = "FontPrimary" })
 
             local elementContainer = Create("Frame", {
                 Name = "Elements",
@@ -793,7 +981,7 @@ function Library:CreateWindow(options)
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 LayoutOrder = 1,
-                Parent = groupbox,
+                Parent = gbFrame,
             }, {
                 Create("UIListLayout", {
                     SortOrder = Enum.SortOrder.LayoutOrder,
@@ -803,6 +991,7 @@ function Library:CreateWindow(options)
 
             local Groupbox = {}
             Groupbox.Name = name
+            Groupbox._frame = gbFrame
             Groupbox._container = elementContainer
             Groupbox._elementOrder = 0
 
@@ -860,6 +1049,10 @@ function Library:CreateWindow(options)
                 }),
             })
 
+            Library:AddToRegistry(tabboxFrame, { BackgroundColor3 = "GroupboxBg" })
+            local tbxStroke = tabboxFrame:FindFirstChildOfClass("UIStroke")
+            if tbxStroke then Library:AddToRegistry(tbxStroke, { Color = "Border" }) end
+
             local tabRow = Create("Frame", {
                 Name = "TabRow",
                 Size = UDim2.new(1, 0, 0, 22),
@@ -913,6 +1106,8 @@ function Library:CreateWindow(options)
                         PaddingRight = UDim.new(0, 8),
                     }),
                 })
+
+                Library:AddToRegistry(tbBtn, { BackgroundColor3 = "TabInactive", TextColor3 = "FontSecondary" })
 
                 local tbContent = Create("Frame", {
                     Name = "TBContent_" .. name,
@@ -1021,6 +1216,13 @@ function Library:CreateWindow(options)
         Window.ActiveTab = tab
     end
 
+    function Window:SetWindowTitle(newTitle)
+        if Library._titleLabel then
+            Library._titleLabel.Text = newTitle
+        end
+    end
+    Window.SetTitle = Window.SetWindowTitle
+
     self.Window = Window
     return Window
 end
@@ -1061,6 +1263,12 @@ function Library:Unload()
         end
     end
     self.Connections = {}
+
+    -- Clean up registry
+    self.Registry = {}
+    self.RegistryMap = {}
+    self.HudRegistry = {}
+    self.DependencyBoxes = {}
 
     -- Clean up global entries owned by this instance
     for flag in pairs(self.Flags) do

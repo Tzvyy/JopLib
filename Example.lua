@@ -30,10 +30,11 @@ local Tabs = {
 
 local LeftGroupBox = Tabs.Main:AddLeftGroupbox("Groupbox")
 
--- Toggle
+-- Toggle (with Tooltip)
 LeftGroupBox:AddToggle("MyToggle", {
     Text = "This is a toggle",
     Default = true,
+    Tooltip = "This is a tooltip for the toggle!",
 
     Callback = function(Value)
         print("[cb] MyToggle changed to:", Value)
@@ -70,7 +71,7 @@ LeftGroupBox:AddLabel("This is a label\n\nwhich wraps its text!", true)
 -- Divider
 LeftGroupBox:AddDivider()
 
--- Slider
+-- Slider (with Tooltip)
 LeftGroupBox:AddSlider("MySlider", {
     Text = "This is my slider!",
     Default = 0,
@@ -78,6 +79,7 @@ LeftGroupBox:AddSlider("MySlider", {
     Max = 5,
     Rounding = 1,
     Compact = false,
+    Tooltip = "Drag to adjust the value",
 
     Callback = function(Value)
         print("[cb] MySlider was changed! New value:", Value)
@@ -149,25 +151,33 @@ Options.MyMultiDropdown:SetValue({
     is = true,
 })
 
--- ColorPicker on a Label
-LeftGroupBox:AddLabel("Color"):AddColorPicker("ColorPicker", {
+-- Multiple ColorPickers on a Label
+LeftGroupBox:AddLabel("Colors"):AddColorPicker("ColorPicker", {
     Default = Color3.new(0, 1, 0),
     Title = "Some color",
 
     Callback = function(Value)
         print("[cb] Color changed!", Value)
     end,
+}):AddColorPicker("ColorPickerAlt", {
+    Default = Color3.new(1, 0.5, 0),
+    Title = "Secondary color",
 })
 
 Options.ColorPicker:OnChanged(function()
     print("Color changed!", Options.ColorPicker.Value)
 end)
 
--- KeyPicker on a Label
+Options.ColorPickerAlt:OnChanged(function()
+    print("Alt color changed!", Options.ColorPickerAlt.Value)
+end)
+
+-- KeyPicker on a Label (with restricted Modes)
 LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
     Default = "MB2",
     SyncToggleState = false,
     Mode = "Toggle",
+    Modes = {"Hold", "Toggle"},
     Text = "Auto lockpick safes",
     NoUI = false,
 
@@ -208,6 +218,42 @@ Options.KeyPicker:SetValue({ "MB2", "Toggle" })
 local LeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Groupbox #2")
 LeftGroupBox2:AddLabel("Oh no...\nThis label spans multiple lines!\n\nWe're gonna run out of UI space...\nJust kidding! Scroll down!\n\n\nHello from below!", true)
 
+-- Risky Toggle
+LeftGroupBox2:AddToggle("RiskyToggle", {
+    Text = "Risky feature (may cause detection)",
+    Default = false,
+    Risky = true,
+    Tooltip = "This feature may be detected by anti-cheat",
+})
+
+-- Player Dropdown (auto-refreshes on join/leave)
+LeftGroupBox2:AddDropdown("TargetPlayer", {
+    Text = "Target Player",
+    SpecialType = "Player",
+})
+
+-- Team Dropdown (auto-refreshes on team changes)
+LeftGroupBox2:AddDropdown("TargetTeam", {
+    Text = "Target Team",
+    SpecialType = "Team",
+})
+
+-- Toggle with KeyPicker AND multiple ColorPickers
+LeftGroupBox2:AddToggle("AddonToggle", {
+    Text = "Addons toggle",
+    Default = false,
+}):AddKeyPicker("AddonKP", {
+    Default = "None",
+    Mode = "Toggle",
+    Text = "Addon Key",
+}):AddColorPicker("AddonCP1", {
+    Default = Color3.new(1, 0, 0),
+    Title = "Primary",
+}):AddColorPicker("AddonCP2", {
+    Default = Color3.new(0, 0, 1),
+    Title = "Secondary",
+})
+
 -- ============================================================
 -- RIGHT TABBOX
 -- ============================================================
@@ -247,6 +293,9 @@ SubDepbox:SetupDependencies({
 -- ============================================================
 -- WATERMARK (hidden by default, toggle in GUI Settings)
 -- ============================================================
+
+-- SetWindowTitle example
+Window:SetTitle("JopLib Example | v2.0")
 
 Library:SetWatermarkVisibility(false)
 

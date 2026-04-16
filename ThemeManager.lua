@@ -69,6 +69,132 @@ ThemeManager.BuiltInThemes["Dark"] = {
     Border           = Color3.fromRGB(35, 35, 35),
 }
 
+ThemeManager.BuiltInThemes["Jester"] = {
+    Background       = Color3.fromRGB(20, 20, 20),
+    TitleBar         = Color3.fromRGB(25, 25, 25),
+    TabBackground    = Color3.fromRGB(28, 28, 28),
+    TabActive        = Color3.fromRGB(35, 35, 35),
+    TabInactive      = Color3.fromRGB(28, 28, 28),
+    GroupboxBg       = Color3.fromRGB(25, 25, 25),
+    ElementBg        = Color3.fromRGB(35, 35, 35),
+    ElementBorder    = Color3.fromRGB(50, 50, 50),
+    FontPrimary      = Color3.fromRGB(220, 220, 220),
+    FontSecondary    = Color3.fromRGB(160, 160, 160),
+    Accent           = Color3.fromRGB(170, 50, 220),
+    ToggleOn         = Color3.fromRGB(170, 50, 220),
+    ToggleOff        = Color3.fromRGB(50, 50, 50),
+    SliderFill       = Color3.fromRGB(170, 50, 220),
+    Border           = Color3.fromRGB(45, 45, 45),
+}
+
+ThemeManager.BuiltInThemes["Mint"] = {
+    Background       = Color3.fromRGB(18, 24, 22),
+    TitleBar         = Color3.fromRGB(22, 30, 27),
+    TabBackground    = Color3.fromRGB(24, 32, 29),
+    TabActive        = Color3.fromRGB(32, 42, 38),
+    TabInactive      = Color3.fromRGB(24, 32, 29),
+    GroupboxBg       = Color3.fromRGB(22, 30, 27),
+    ElementBg        = Color3.fromRGB(32, 42, 38),
+    ElementBorder    = Color3.fromRGB(44, 58, 52),
+    FontPrimary      = Color3.fromRGB(210, 230, 220),
+    FontSecondary    = Color3.fromRGB(140, 170, 155),
+    Accent           = Color3.fromRGB(60, 210, 150),
+    ToggleOn         = Color3.fromRGB(60, 210, 150),
+    ToggleOff        = Color3.fromRGB(44, 58, 52),
+    SliderFill       = Color3.fromRGB(60, 210, 150),
+    Border           = Color3.fromRGB(38, 50, 45),
+}
+
+ThemeManager.BuiltInThemes["Tokyo Night"] = {
+    Background       = Color3.fromRGB(26, 27, 38),
+    TitleBar         = Color3.fromRGB(30, 31, 44),
+    TabBackground    = Color3.fromRGB(32, 33, 48),
+    TabActive        = Color3.fromRGB(42, 43, 60),
+    TabInactive      = Color3.fromRGB(32, 33, 48),
+    GroupboxBg       = Color3.fromRGB(30, 31, 44),
+    ElementBg        = Color3.fromRGB(42, 43, 60),
+    ElementBorder    = Color3.fromRGB(56, 58, 78),
+    FontPrimary      = Color3.fromRGB(192, 202, 245),
+    FontSecondary    = Color3.fromRGB(130, 140, 175),
+    Accent           = Color3.fromRGB(122, 162, 247),
+    ToggleOn         = Color3.fromRGB(122, 162, 247),
+    ToggleOff        = Color3.fromRGB(56, 58, 78),
+    SliderFill       = Color3.fromRGB(122, 162, 247),
+    Border           = Color3.fromRGB(48, 50, 68),
+}
+
+ThemeManager.BuiltInThemes["Rose"] = {
+    Background       = Color3.fromRGB(25, 18, 22),
+    TitleBar         = Color3.fromRGB(30, 22, 26),
+    TabBackground    = Color3.fromRGB(32, 24, 28),
+    TabActive        = Color3.fromRGB(42, 32, 36),
+    TabInactive      = Color3.fromRGB(32, 24, 28),
+    GroupboxBg       = Color3.fromRGB(30, 22, 26),
+    ElementBg        = Color3.fromRGB(42, 32, 36),
+    ElementBorder    = Color3.fromRGB(62, 45, 52),
+    FontPrimary      = Color3.fromRGB(235, 210, 220),
+    FontSecondary    = Color3.fromRGB(170, 140, 155),
+    Accent           = Color3.fromRGB(235, 80, 120),
+    ToggleOn         = Color3.fromRGB(235, 80, 120),
+    ToggleOff        = Color3.fromRGB(55, 40, 46),
+    SliderFill       = Color3.fromRGB(235, 80, 120),
+    Border           = Color3.fromRGB(50, 38, 44),
+}
+
+ThemeManager.BuiltInThemes["Ocean"] = {
+    Background       = Color3.fromRGB(16, 22, 30),
+    TitleBar         = Color3.fromRGB(20, 28, 38),
+    TabBackground    = Color3.fromRGB(22, 30, 40),
+    TabActive        = Color3.fromRGB(30, 40, 54),
+    TabInactive      = Color3.fromRGB(22, 30, 40),
+    GroupboxBg       = Color3.fromRGB(20, 28, 38),
+    ElementBg        = Color3.fromRGB(30, 40, 54),
+    ElementBorder    = Color3.fromRGB(42, 56, 74),
+    FontPrimary      = Color3.fromRGB(200, 220, 240),
+    FontSecondary    = Color3.fromRGB(130, 155, 180),
+    Accent           = Color3.fromRGB(50, 150, 255),
+    ToggleOn         = Color3.fromRGB(50, 150, 255),
+    ToggleOff        = Color3.fromRGB(42, 56, 74),
+    SliderFill       = Color3.fromRGB(50, 150, 255),
+    Border           = Color3.fromRGB(36, 48, 64),
+}
+
+ThemeManager.BuiltInThemes["Dracula"] = {
+    Background       = Color3.fromRGB(40, 42, 54),
+    TitleBar         = Color3.fromRGB(44, 47, 60),
+    TabBackground    = Color3.fromRGB(47, 50, 65),
+    TabActive        = Color3.fromRGB(56, 58, 75),
+    TabInactive      = Color3.fromRGB(47, 50, 65),
+    GroupboxBg       = Color3.fromRGB(44, 47, 60),
+    ElementBg        = Color3.fromRGB(56, 58, 75),
+    ElementBorder    = Color3.fromRGB(68, 71, 90),
+    FontPrimary      = Color3.fromRGB(248, 248, 242),
+    FontSecondary    = Color3.fromRGB(180, 180, 175),
+    Accent           = Color3.fromRGB(189, 147, 249),
+    ToggleOn         = Color3.fromRGB(189, 147, 249),
+    ToggleOff        = Color3.fromRGB(68, 71, 90),
+    SliderFill       = Color3.fromRGB(189, 147, 249),
+    Border           = Color3.fromRGB(60, 63, 80),
+}
+
+ThemeManager.BuiltInThemes["Nord"] = {
+    Background       = Color3.fromRGB(46, 52, 64),
+    TitleBar         = Color3.fromRGB(50, 56, 70),
+    TabBackground    = Color3.fromRGB(54, 60, 74),
+    TabActive        = Color3.fromRGB(62, 68, 82),
+    TabInactive      = Color3.fromRGB(54, 60, 74),
+    GroupboxBg       = Color3.fromRGB(50, 56, 70),
+    ElementBg        = Color3.fromRGB(62, 68, 82),
+    ElementBorder    = Color3.fromRGB(76, 86, 106),
+    FontPrimary      = Color3.fromRGB(229, 233, 240),
+    FontSecondary    = Color3.fromRGB(170, 176, 190),
+    Accent           = Color3.fromRGB(136, 192, 208),
+    ToggleOn         = Color3.fromRGB(136, 192, 208),
+    ToggleOff        = Color3.fromRGB(76, 86, 106),
+    SliderFill       = Color3.fromRGB(136, 192, 208),
+    Border           = Color3.fromRGB(67, 76, 94),
+}
+
 -- ============================================================
 -- METHODS
 -- ============================================================
@@ -82,7 +208,12 @@ function ThemeManager:SetFolder(folder)
 end
 
 function ThemeManager:GetThemes()
-    return {"Default", "Dark", "Light"}
+    local names = {}
+    for name in pairs(self.BuiltInThemes) do
+        table.insert(names, name)
+    end
+    table.sort(names)
+    return names
 end
 
 function ThemeManager:SetTheme(name)
@@ -99,140 +230,17 @@ function ThemeManager:SetTheme(name)
     end
     lib.AccentColor = theme.Accent
 
-    self:_applyThemeToGui()
+    lib:UpdateColorsUsingRegistry()
 
     -- Update color picker previews to match theme
     self:_syncColorPickers()
 
-    return true
-end
-
-function ThemeManager:_applyThemeToGui()
-    local lib = self.Library
-    if not lib or not lib.ScreenGui then return end
-
-    local theme = lib.Theme
-    local gui = lib.ScreenGui
-
-    for _, desc in ipairs(gui:GetDescendants()) do
-        local name = desc.Name
-
-        if desc:IsA("Frame") then
-            if name == "MainFrame" then
-                desc.BackgroundColor3 = theme.Background
-            elseif name == "TitleBar" then
-                desc.BackgroundColor3 = theme.Background
-            elseif name == "BottomCover" then
-                desc.BackgroundColor3 = theme.Background
-            elseif name == "AccentLine" or name == "AccentBar" then
-                desc.BackgroundColor3 = theme.Accent
-            elseif name == "TabBarContainer" then
-                desc.BackgroundColor3 = theme.TabBackground
-            elseif name:find("Groupbox_") or name == "Tabbox" then
-                desc.BackgroundColor3 = theme.GroupboxBg
-            elseif name == "Fill" then
-                desc.BackgroundColor3 = theme.SliderFill
-            elseif name == "Box" and desc.Parent and desc.Parent.Name:find("^Toggle_") then
-                local flag = desc.Parent.Name:sub(8)
-                local tog = getgenv().Toggles and getgenv().Toggles[flag]
-                if tog then
-                    desc.BackgroundColor3 = tog.Value and theme.ToggleOn or theme.ToggleOff
-                end
-            end
-        end
-
-        if desc:IsA("UIStroke") then
-            local parent = desc.Parent
-            if parent then
-                if parent.Name == "MainFrame" or (parent:IsA("Frame") and (parent.Name:find("Groupbox_") or parent.Name == "Tabbox")) then
-                    desc.Color = theme.Border
-                else
-                    desc.Color = theme.ElementBorder
-                end
-            end
-        end
-
-        if desc:IsA("TextLabel") then
-            if name == "TitleText" or name == "GroupTitle" then
-                desc.TextColor3 = theme.FontPrimary
-            elseif name == "Label" then
-                desc.TextColor3 = theme.FontPrimary
-            elseif name == "Value" or name == "Arrow" then
-                desc.TextColor3 = theme.FontSecondary
-            end
-        end
-
-        if desc:IsA("TextButton") then
-            if name == "Btn" then
-                desc.BackgroundColor3 = theme.ElementBg
-                desc.TextColor3 = theme.FontPrimary
-            elseif name:find("^Tab_") then
-                -- Main tabs (Tab_Main, Tab_GUI Settings, etc.)
-                local isActive = desc.BackgroundColor3 ~= theme.TabInactive
-                desc.BackgroundColor3 = theme.TabActive
-            elseif name:find("^TBTab_") then
-                -- Tabbox sub-tabs
-                desc.BackgroundColor3 = theme.TabActive
-            elseif name == "DropBtn" then
-                desc.BackgroundColor3 = theme.ElementBg
-            elseif name == "KeyBtn" then
-                desc.BackgroundColor3 = theme.ElementBg
-            end
-        end
-
-        if desc:IsA("ScrollingFrame") then
-            if name == "LeftColumn" or name == "RightColumn" then
-                desc.ScrollBarImageColor3 = theme.Accent
-            end
-        end
-    end
-
-    -- Update watermark background to match theme
-    if lib._watermarkFrame then
-        lib._watermarkFrame.BackgroundColor3 = theme.Background
-        local wmStroke = lib._watermarkFrame:FindFirstChildOfClass("UIStroke")
-        if wmStroke then wmStroke.Color = theme.Border end
-        local wmText = lib._watermarkFrame:FindFirstChild("Text", true)
-        if wmText then wmText.TextColor3 = theme.FontSecondary end
-    end
-
-    -- Update keybind frame background to match theme
-    if lib._keybindFrame then
-        lib._keybindFrame.BackgroundColor3 = theme.Background
-        local kfStroke = lib._keybindFrame:FindFirstChildOfClass("UIStroke")
-        if kfStroke then kfStroke.Color = theme.Border end
-        local kfTitle = lib._keybindFrame:FindFirstChild("Title", true)
-        if kfTitle then kfTitle.TextColor3 = theme.FontSecondary end
-    end
-
     -- Deferred re-apply to catch any tweens from config autoload that may override colors
     task.delay(0.2, function()
-        self:_refreshElementColors()
+        lib:UpdateColorsUsingRegistry()
     end)
-end
 
--- Re-applies theme colors directly to toggle/slider objects (bypasses tweens)
-function ThemeManager:_refreshElementColors()
-    local lib = self.Library
-    if not lib then return end
-    local theme = lib.Theme
-
-    -- Fix toggle box colors
-    for _, toggle in pairs(getgenv().Toggles or {}) do
-        if toggle._box then
-            toggle._box.BackgroundColor3 = toggle.Value and theme.ToggleOn or theme.ToggleOff
-        end
-    end
-
-    -- Fix slider fill colors
-    local gui = lib.ScreenGui
-    if gui then
-        for _, desc in ipairs(gui:GetDescendants()) do
-            if desc:IsA("Frame") and desc.Name == "Fill" then
-                desc.BackgroundColor3 = theme.SliderFill
-            end
-        end
-    end
+    return true
 end
 
 function ThemeManager:_getBaseFolder()
@@ -334,7 +342,7 @@ function ThemeManager:LoadCustomTheme(name)
     end
     if lib.Theme.Accent then lib.AccentColor = lib.Theme.Accent end
     self._currentThemeName = name
-    self:_applyThemeToGui()
+    lib:UpdateColorsUsingRegistry()
     self:_syncColorPickers()
     return true
 end
@@ -383,7 +391,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             if entry.keys[1] == "Accent" then
                 lib.AccentColor = color
             end
-            ThemeManager:_applyThemeToGui()
+            lib:UpdateColorsUsingRegistry()
         end)
     end
 
