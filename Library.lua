@@ -196,7 +196,7 @@ function Library:Notify(text, duration)
             Text = text,
             TextColor3 = self.Theme.FontPrimary,
             FontFace = self.FontRegular,
-            TextSize = 14,
+            TextSize = 16,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
@@ -536,7 +536,7 @@ function Library:CreateWindow(options)
         Text = title,
         TextColor3 = self.Theme.FontPrimary,
         FontFace = self.FontBold,
-        TextSize = 15,
+        TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = titleBar,
     })
@@ -656,7 +656,7 @@ function Library:CreateWindow(options)
                 Text = tabName,
                 TextColor3 = Library.Theme.FontSecondary,
                 FontFace = Library.FontSemiBold,
-                TextSize = 13,
+                TextSize = 14,
             }),
         })
 
@@ -764,7 +764,7 @@ function Library:CreateWindow(options)
                 Text = name,
                 TextColor3 = Library.Theme.FontPrimary,
                 FontFace = Library.FontBold,
-                TextSize = 13,
+                TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 LayoutOrder = 0,
                 Parent = groupbox,
@@ -886,7 +886,7 @@ function Library:CreateWindow(options)
                     Text = name,
                     TextColor3 = Library.Theme.FontSecondary,
                     FontFace = Library.FontSemiBold,
-                    TextSize = 12,
+                    TextSize = 14,
                     LayoutOrder = tOrder,
                     Parent = tabRow,
                 }, {
