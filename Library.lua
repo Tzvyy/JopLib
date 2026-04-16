@@ -691,7 +691,7 @@ function Library:CreateWindow(options)
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
     })
 
-    Create("Frame", {
+    local bottomCover = Create("Frame", {
         Name = "BottomCover",
         Size = UDim2.new(1, 0, 0, 8),
         Position = UDim2.new(0, 0, 1, -8),
@@ -699,11 +699,12 @@ function Library:CreateWindow(options)
         BorderSizePixel = 0,
         Parent = titleBar,
     })
+    self:AddToRegistry(bottomCover, { BackgroundColor3 = "Background" })
 
     local accentLine = Create("Frame", {
         Name = "AccentLine",
-        Size = UDim2.new(1, 0, 0, 2),
-        Position = UDim2.new(0, 0, 1, -1),
+        Size = UDim2.new(1, 0, 0, 3),
+        Position = UDim2.new(0, 0, 1, -2),
         BackgroundColor3 = self.Theme.Accent,
         BorderSizePixel = 0,
         Parent = titleBar,
@@ -732,7 +733,7 @@ function Library:CreateWindow(options)
     local tabBarContainer = Create("Frame", {
         Name = "TabBarContainer",
         Size = UDim2.new(1, 0, 0, 28),
-        Position = UDim2.new(0, 0, 0, 34),
+        Position = UDim2.new(0, 0, 0, 33),
         BackgroundColor3 = self.Theme.TabBackground,
         BorderSizePixel = 0,
         Parent = mainFrame,

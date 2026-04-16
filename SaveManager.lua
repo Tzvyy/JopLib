@@ -282,6 +282,9 @@ function SaveManager:BuildConfigSection(tab)
             Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
+        lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
+        local btnStroke = btn:FindFirstChildOfClass("UIStroke")
+        if btnStroke then lib:AddToRegistry(btnStroke, { Color = "ElementBorder" }) end
         if doubleClick then
             local confirming = false
             btn.MouseButton1Click:Connect(function()
