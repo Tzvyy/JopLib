@@ -932,6 +932,7 @@ function Elements:Setup(Library)
                 }, {
                     Create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
                 })
+                lib:AddToRegistry(searchBox, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
             end
 
             local itemButtons = {}
