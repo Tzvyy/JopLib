@@ -229,6 +229,8 @@ local Window = Library:CreateWindow({
     Title = "My Script",
     Center = true,
     AutoShow = true,
+    Width = 550,      -- optional, default 550
+    Height = 600,     -- optional, default 600
     TabPadding = 8,
 })
 
@@ -252,6 +254,7 @@ ThemeManager:SetTheme("Default")  -- programmatic switch
 **Built-in themes:** Default, Dark, Light, Dracula, Jester, Mint, Nord, Ocean, Rose, Tokyo Night
 
 Custom themes: save/load/delete/overwrite via the UI. Set as autoload to auto-apply on startup.
+- **Set as autoload** uses the most recent selection from either the built-in or custom theme dropdown.
 
 ## SaveManager
 
@@ -277,6 +280,8 @@ end)
 ```
 
 Config UI: Save, Load, Overwrite, Delete (with confirmation), Refresh, Set as autoload.
+- **Load** uses the config selected in the dropdown (not the name textbox).
+- **Set as autoload** sets the currently selected dropdown item as the autoload config.
 
 ## Notifications
 

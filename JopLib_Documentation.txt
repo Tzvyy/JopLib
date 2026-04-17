@@ -112,7 +112,7 @@ Keybind List:
   Library.KeybindFrame.Visible = true/false
   - Shows active keybinds: Name [Key] (Mode)
   - 220px wide, stacks entries vertically
-  - Updates on heartbeat (throttled to 0.2s)
+  - Updates on heartbeat (throttled to 0.2s, with dirty tracking)
 
 ================================================================================
 3. ELEMENTS.LUA - UI COMPONENTS
@@ -364,6 +364,8 @@ CUSTOM THEMES
   ThemeManager:_listCustomThemes()           -- list saved themes
   - Stored as JSON: JopLib/themes/MyTheme.json
   - Delete and overwrite via UI with confirmation
+  - "Set as autoload" uses the most recent dropdown selection
+    (from either built-in or custom theme dropdown)
 
 METHODS:
   ThemeManager:SetLibrary(lib)
@@ -419,7 +421,7 @@ METHODS
   SaveManager:SetConfigVersion(num)
   SaveManager:AddMigration(fromVersion, fn)
   SaveManager:Save(name)
-  SaveManager:Load(name)
+  SaveManager:Load(name)               -- loads from ConfigList dropdown
   SaveManager:Delete(name)
   SaveManager:GetConfigs()
   SaveManager:IgnoreThemeSettings()
@@ -535,10 +537,10 @@ TEXT SIZES
   Groupbox title:   14px (Bold)
   Tab label:        14px (SemiBold)
   Toggle label:     14px (Regular)
-  Toggle value:     12px (Regular)
+  Toggle value:     13px (Regular)
   Slider value:     13px (Regular)
   Dropdown text:    13px (Regular)
-  Button text:      13px (Regular)
+  Button text:      14px (SemiBold)
   Input text:       13px (Regular)
   Keybind button:   12px (Regular)
   Notification:     14px (Regular)
@@ -547,7 +549,7 @@ TEXT SIZES
 
 CORNER RADII
 ------------
-  Main window:      8px
+  Main window:      6px
   Groupbox:         6px
   Toggle box:       3px
   Button:           4px
@@ -560,12 +562,12 @@ CORNER RADII
 
 COLORS (Default Theme)
 -----------------------
-  Background:       30, 30, 30
-  TitleBar:         30, 30, 30
-  TabBackground:    35, 35, 35
-  TabActive:        40, 40, 40
-  TabInactive:      30, 30, 30
-  GroupboxBg:       30, 30, 30
+  Background:       20, 20, 20
+  TitleBar:         25, 25, 25
+  TabBackground:    28, 28, 28
+  TabActive:        35, 35, 35
+  TabInactive:      28, 28, 28
+  GroupboxBg:       25, 25, 25
   ElementBg:        35, 35, 35
   ElementBorder:    50, 50, 50
   Border:           45, 45, 45
