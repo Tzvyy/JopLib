@@ -1255,6 +1255,22 @@ function Elements:Setup(Library)
     end
 
     -- ============================================================
+    -- BLANK (spacer)
+    -- ============================================================
+
+    function Groupbox.AddBlank(self, height)
+        local lib = Elements.Library
+        local order = self:_nextOrder()
+        Create("Frame", {
+            Name = "Blank",
+            Size = UDim2.new(1, 0, 0, height or 8),
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Parent = self._container,
+        })
+    end
+
+    -- ============================================================
     -- DIVIDER
     -- ============================================================
 
@@ -2153,6 +2169,7 @@ function Elements:Setup(Library)
         depBox.AddDropdown = Groupbox.AddDropdown
         depBox.AddInput = Groupbox.AddInput
         depBox.AddLabel = Groupbox.AddLabel
+        depBox.AddBlank = Groupbox.AddBlank
         depBox.AddDivider = Groupbox.AddDivider
         depBox.AddKeyPicker = Groupbox.AddKeyPicker
         depBox.AddColorPicker = Groupbox.AddColorPicker
