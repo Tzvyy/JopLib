@@ -126,10 +126,15 @@ function Elements:Setup(Library)
             return self
         end
 
-        function toggleObj:SetValue(val)
+        function toggleObj:SetValue(val, noTween)
             self.Value = val
             if self._box then
-                Tween(self._box, {BackgroundColor3 = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff}, 0.15):Play()
+                local color = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff
+                if noTween then
+                    self._box.BackgroundColor3 = color
+                else
+                    Tween(self._box, {BackgroundColor3 = color}, 0.15):Play()
+                end
                 -- Update registry mapping for toggle box
                 local regData = lib.RegistryMap[self._box]
                 if regData then

@@ -139,7 +139,9 @@ function SaveManager:_deserialize(data)
         if not obj then continue end
 
         local t = entry.type
-        if t == "Toggle" or t == "Slider" or t == "Input" then
+        if t == "Toggle" then
+            pcall(obj.SetValue, obj, entry.value, true)
+        elseif t == "Slider" or t == "Input" then
             pcall(obj.SetValue, obj, entry.value)
         elseif t == "Dropdown" then
             if entry.multi then

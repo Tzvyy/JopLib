@@ -237,11 +237,6 @@ function ThemeManager:SetTheme(name)
     -- Update color picker previews to match theme
     self:_syncColorPickers()
 
-    -- Deferred re-apply to catch any tweens from config autoload that may override colors
-    task.delay(0.2, function()
-        lib:UpdateColorsUsingRegistry()
-    end)
-
     return true
 end
 
