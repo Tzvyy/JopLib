@@ -163,6 +163,7 @@ function Elements:Setup(Library)
             for _, addon in ipairs(self.Addons) do
                 if addon.Type == "KeyPicker" and addon.SyncToggleState then
                     addon.Toggled = val
+                    addon._isActive = val -- GetState() reads _isActive, must stay in sync
                     if addon.Update then addon:Update() end
                 end
             end
