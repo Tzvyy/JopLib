@@ -284,7 +284,9 @@ function Library:UpdateColorsUsingRegistry()
 end
 
 function Library:UpdateDependencyBoxes()
-    for _, depbox in ipairs(self.DependencyBoxes) do
+    local boxes = self.DependencyBoxes
+    for i = 1, #boxes do
+        local depbox = boxes[i]
         if depbox.Update then depbox:Update() end
     end
 end
@@ -604,13 +606,28 @@ end
 function Library:UpdateKeybindFrame()
     if not self._keybindGui or not self._keybindFrame.Visible then return end
 
+    -- Build fingerprint to detect changes
+    local showAll = not (self._keybindFilterActive)
+    local fpParts = {}
+    local fpN = 0
+    for flag, opt in pairs(self.Flags) do
+        if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
+            if not showAll and not opt._isActive then continue end
+            local isActive = opt._isActive or ((opt.Mode or "Toggle") == "Always")
+            fpN = fpN + 1
+            fpParts[fpN] = flag .. "|" .. opt.Value .. "|" .. (opt.Mode or "Toggle") .. "|" .. (isActive and "1" or "0")
+        end
+    end
+    local fingerprint = table.concat(fpParts, ";", 1, fpN)
+    if fingerprint == self._keybindFingerprint then return end
+    self._keybindFingerprint = fingerprint
+
     local listFrame = self._keybindList
     for _, child in ipairs(listFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
 
     local count = 0
-    local showAll = not (self._keybindFilterActive)
     for flag, opt in pairs(self.Flags) do
         if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
             if not showAll and not opt._isActive then continue end

@@ -160,7 +160,7 @@ function Elements:Setup(Library)
                 end
             end
             -- Sync KeyPicker addon toggle state
-            for _, addon in ipairs(self.Addons or {}) do
+            for _, addon in ipairs(self.Addons) do
                 if addon.Type == "KeyPicker" and addon.SyncToggleState then
                     addon.Toggled = val
                     if addon.Update then addon:Update() end
@@ -381,9 +381,9 @@ function Elements:Setup(Library)
             if self._fill then Tween(self._fill, {Size = UDim2.new(pct, 0, 1, 0)}, 0.1):Play() end
             if self._valueLabel then
                 if compact or hideMax then
-                    self._valueLabel.Text = tostring(val) .. suffix
+                    self._valueLabel.Text = string.format("%s%s", val, suffix)
                 else
-                    self._valueLabel.Text = tostring(val) .. " / " .. tostring(max) .. suffix
+                    self._valueLabel.Text = string.format("%s / %s%s", val, max, suffix)
                 end
             end
             if lib.DebugLogs then
@@ -672,12 +672,21 @@ function Elements:Setup(Library)
                 if btnFunc then lib:SafeCallback(btnFunc) end
             end)
 
+            local _cachedHoverBg, _cachedBaseBg
+            local function getHoverColor()
+                local base = lib.Theme.ElementBg
+                if base ~= _cachedBaseBg then
+                    _cachedBaseBg = base
+                    _cachedHoverBg = Color3.fromRGB(
+                        math.min(255, base.R * 255 + 12),
+                        math.min(255, base.G * 255 + 12),
+                        math.min(255, base.B * 255 + 12)
+                    )
+                end
+                return _cachedHoverBg
+            end
             btn.MouseEnter:Connect(function()
-                Tween(btn, {BackgroundColor3 = Color3.fromRGB(
-                    math.min(255, lib.Theme.ElementBg.R * 255 + 12) / 255,
-                    math.min(255, lib.Theme.ElementBg.G * 255 + 12) / 255,
-                    math.min(255, lib.Theme.ElementBg.B * 255 + 12) / 255
-                )}, 0.1):Play()
+                Tween(btn, {BackgroundColor3 = getHoverColor()}, 0.1):Play()
             end)
             btn.MouseLeave:Connect(function()
                 Tween(btn, {BackgroundColor3 = lib.Theme.ElementBg}, 0.1):Play()

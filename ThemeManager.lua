@@ -268,11 +268,13 @@ function ThemeManager:_syncColorPickers()
     local lib = self.Library
     if not lib then return end
     local flags = lib.Flags
-    for i, key in ipairs(SyncKeys) do
+    local theme = lib.Theme
+    for i = 1, #SyncKeys do
+        local key = SyncKeys[i]
         local cpFlag = "ThemeColor_" .. i
         local obj = flags[cpFlag]
-        if obj and lib.Theme[key] then
-            pcall(obj.SetValue, obj, lib.Theme[key])
+        if obj and theme[key] then
+            pcall(obj.SetValue, obj, theme[key])
         end
     end
 end
