@@ -1,5 +1,5 @@
 -- JopLib Example Script
--- Matches Linoria-style API for testing all features
+-- Showcases all features of the library
 
 local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
 
@@ -12,7 +12,7 @@ Elements:Setup(Library)
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 
--- Use instance-scoped tables (safe with multiple scripts)
+-- Instance-scoped proxy tables (safe with multiple scripts)
 local Toggles = Library.Toggles
 local Options = Library.Options
 
@@ -23,8 +23,10 @@ local Window = Library:CreateWindow({
     TabPadding = 8,
 })
 
+-- Tab icons: pass a table with Name and Icon (Roblox asset ID)
 local Tabs = {
     Main = Window:AddTab("Main"),
+    Extra = Window:AddTab("Extra", { Icon = "rbxassetid://7733960981" }),
     ["GUI Settings"] = Window:AddTab("GUI Settings"),
 }
 
@@ -51,6 +53,9 @@ end)
 
 Toggles.MyToggle:SetValue(false)
 
+-- Toggle:SetText demo
+Toggles.MyToggle:SetText("Renamed toggle")
+
 -- Button
 local MyButton = LeftGroupBox:AddButton({
     Text = "Button",
@@ -75,7 +80,7 @@ LeftGroupBox:AddLabel("This is a label\n\nwhich wraps its text!", true)
 -- Divider
 LeftGroupBox:AddDivider()
 
--- Slider (with Tooltip)
+-- Slider (with step/increment and tooltip)
 LeftGroupBox:AddSlider("MySlider", {
     Text = "This is my slider!",
     Default = 0,
@@ -95,6 +100,20 @@ Options.MySlider:OnChanged(function()
 end)
 
 Options.MySlider:SetValue(3)
+
+-- Slider with Increment (snaps to multiples of 5)
+LeftGroupBox:AddSlider("StepSlider", {
+    Text = "Step slider (increments of 5)",
+    Default = 50,
+    Min = 0,
+    Max = 100,
+    Increment = 5,
+    Rounding = 0,
+    Suffix = "%",
+})
+
+-- Blank spacer
+LeftGroupBox:AddBlank(6)
 
 -- Input
 LeftGroupBox:AddInput("MyTextbox", {
@@ -155,6 +174,13 @@ Options.MyMultiDropdown:SetValue({
     is = true,
 })
 
+-- Dropdown with search (auto-appears when > 6 items)
+LeftGroupBox:AddDropdown("SearchDrop", {
+    Values = { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew" },
+    Default = 1,
+    Text = "Searchable dropdown",
+})
+
 -- Multiple ColorPickers on a Label
 LeftGroupBox:AddLabel("Colors"):AddColorPicker("ColorPicker", {
     Default = Color3.new(0, 1, 0),
@@ -176,7 +202,7 @@ Options.ColorPickerAlt:OnChanged(function()
     print("Alt color changed!", Options.ColorPickerAlt.Value)
 end)
 
--- KeyPicker on a Label (with restricted Modes)
+-- KeyPicker on a Label (supports modifier combos like Ctrl+X, scroll wheel)
 LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
     Default = "MB2",
     SyncToggleState = false,
@@ -218,7 +244,7 @@ end)
 Options.KeyPicker:SetValue({ "MB2", "Toggle" })
 
 -- ============================================================
--- LEFT GROUPBOX #2 (long content for scroll testing)
+-- LEFT GROUPBOX #2
 -- ============================================================
 
 local LeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Groupbox #2")
@@ -297,10 +323,39 @@ SubDepbox:SetupDependencies({
 })
 
 -- ============================================================
+-- EXTRA TAB (new features showcase)
+-- ============================================================
+
+local ExtraLeft = Tabs.Extra:AddLeftGroupbox("Dynamic Features")
+
+-- Groupbox:SetTitle demo
+ExtraLeft:AddButton({
+    Text = "Rename this groupbox",
+    Func = function()
+        ExtraLeft:SetTitle("Renamed!")
+    end,
+})
+
+-- Window:Resize demo
+ExtraLeft:AddButton({
+    Text = "Resize window to 700x500",
+    Func = function()
+        Window:Resize(700, 500)
+    end,
+})
+
+-- Window:SetTitle demo
+ExtraLeft:AddButton({
+    Text = "Change window title",
+    Func = function()
+        Window:SetTitle("JopLib | Title Changed!")
+    end,
+})
+
+-- ============================================================
 -- WATERMARK (hidden by default, toggle in GUI Settings)
 -- ============================================================
 
--- SetWindowTitle example
 Window:SetTitle("JopLib Example | v2.0")
 
 Library:SetWatermarkVisibility(false)
@@ -362,6 +417,16 @@ Library.ToggleKeybind = Options.MenuKeybind
 -- ============================================================
 -- THEME + CONFIG (addons)
 -- ============================================================
+
+-- Config version migration example:
+-- SaveManager:SetConfigVersion(2)
+-- SaveManager:AddMigration(1, function(data)
+--     if data["OldFlag"] then
+--         data["NewFlag"] = data["OldFlag"]
+--         data["OldFlag"] = nil
+--     end
+--     return data
+-- end)
 
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })

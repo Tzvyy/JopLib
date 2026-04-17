@@ -18,18 +18,25 @@ TABLE OF CONTENTS
 1. ARCHITECTURE OVERVIEW
 ================================================================================
 
-CORE PRINCIPLE: Modular design with 4 main components that communicate
-through global tables (getgenv().Options and getgenv().Toggles).
+CORE PRINCIPLE: Modular design with 4 main components. Each Library
+instance maintains its own Flags table for state isolation. Global
+getgenv().Options and getgenv().Toggles are still populated for
+backward compatibility, but Library.Toggles and Library.Options are
+instance-scoped proxy tables that prevent cross-script collisions.
 
 COMPONENTS:
 - Library.lua      - Window, popups, notifications, watermark, keybind list
 - Elements.lua     - Interactive elements (toggles, dropdowns, sliders, etc.)
 - ThemeManager.lua - Colors, built-in/custom themes, auto-load
-- SaveManager.lua  - Config save/load system
+- SaveManager.lua  - Config save/load with version migration
 
-GLOBAL ACCESS:
-  getgenv().Options[flag]  - Stores dropdown values, colors, keybinds
-  getgenv().Toggles[flag]  - Stores boolean toggle states
+INSTANCE-SCOPED ACCESS (recommended):
+  local Toggles = Library.Toggles  -- proxy into Library.Flags
+  local Options = Library.Options  -- proxy into Library.Flags
+
+GLOBAL ACCESS (backward compatible):
+  getgenv().Options[flag]
+  getgenv().Toggles[flag]
 
 ================================================================================
 2. LIBRARY.LUA - THE FOUNDATION
@@ -40,30 +47,45 @@ WINDOW CREATION (CreateWindow)
 Usage:
   Library:CreateWindow({
       Title = "JopLib",
-      Center = true
+      Center = true,
+      AutoShow = true,
+      TabPadding = 8,
   })
 
 Creates:
-  - ScreenGui in CoreGui
-  - MainFrame (Background color) with UICorner + UIStroke
-  - TitleBar (Background color, not separate) with title text
-  - TabBarContainer for tab buttons
-  - LeftColumn/RightColumn scrolling frames for groupboxes
-  - _popupHolder for dropdowns/color pickers
+  - ScreenGui in CoreGui (protected with syn.protect_gui/gethui)
+  - MainFrame with UICorner + UIStroke
+  - TitleBar with title text + dragging
+  - TabBarContainer with scrollable tab buttons
+  - ContentContainer with per-tab LeftColumn/RightColumn
+  - _popupHolder for dropdowns/color pickers/context menus
+
+WINDOW METHODS:
+  Window:AddTab(name)                 -- create a tab
+  Window:AddTab(name, {Icon = id})    -- tab with image icon
+  Window:SetTitle(text)               -- change window title
+  Window:Resize(width, height)        -- resize window dynamically
+  Window:SwitchTab(tab)               -- switch to a specific tab
+
+TAB ICONS:
+  When an Icon is provided, the tab button uses a UIListLayout with
+  an ImageLabel (14x14) and TextLabel side by side. The icon color
+  updates with theme changes (FontSecondary when inactive, FontPrimary
+  when active).
 
 POPUP MANAGEMENT
 ----------------
 Variables:
-  Library._openPopup = nil         -- Currently open popup
+  Library._openPopup = nil         -- Currently open popup {Close = fn}
   Library._openPopupTrigger = nil  -- Button that opened it
 
 Methods:
   Library:ClosePopups()            -- Closes current popup
 
 Outside-Click Detection:
-  - Uses InputBegan to detect clicks outside popups
-  - Clicks on trigger button are ignored (prevents close-then-reopen bug)
-  - Only one popup open at a time (dropdown, color picker, or keybind menu)
+  - InputBegan detects clicks outside popups
+  - Clicks on trigger button are ignored (prevents close-then-reopen)
+  - Only one popup open at a time
 
 NOTIFICATION SYSTEM (Notify)
 ----------------------------
@@ -71,26 +93,26 @@ Usage:
   Library:Notify(text, duration)
 
 Features:
-  - Creates notification frame with Background color
-  - Rounded corners (UICorner with CornerRadius 6)
-  - Tween animation (fade in/out, size change)
-  - Auto-removes after duration
-  - NotificationHolder ScreenGui for stacking
+  - Accent bar on left side of each notification
+  - Max 5 notifications visible (oldest removed automatically)
+  - Slide-in animation (size tween from 0 to computed height)
+  - Slide-out animation after duration expires
+  - Stacks from bottom-right using UIListLayout
+  - Themed: Background, Border, Accent, FontPrimary
 
 WATERMARK & KEYBIND LIST
 ------------------------
 Watermark:
-  - Separate ScreenGui positioned on screen
-  - Shows title + FPS, draggable
-  - Background color with slight transparency
-  - Updates FPS every frame
+  Library:SetWatermark(text)           -- update text
+  Library:SetWatermarkVisibility(bool) -- show/hide
+  - Separate ScreenGui, draggable
+  - Background with slight transparency
 
 Keybind List:
-  - Shows active keybinds with accent color when ON
-  - Fixed height entries (18px)
-  - 220px wide frame
-  - "Keybinds" title at top
-  - Lists: Name [Key] (Mode) format
+  Library.KeybindFrame.Visible = true/false
+  - Shows active keybinds: Name [Key] (Mode)
+  - 220px wide, stacks entries vertically
+  - Updates on heartbeat (throttled to 0.2s)
 
 ================================================================================
 3. ELEMENTS.LUA - UI COMPONENTS
@@ -102,10 +124,12 @@ Creation:
   tab:AddLeftGroupbox("GroupName")
   tab:AddRightGroupbox("GroupName")
 
+Methods:
+  groupbox:SetTitle(newTitle)  -- rename header at runtime
+
 Structure:
-  - Container Frame with UIListLayout
-  - Automatic LayoutOrder positioning
-  - Each element gets sequential order number
+  - Container Frame with UIListLayout (4px padding)
+  - Elements get sequential LayoutOrder
 
 TOGGLE (AddToggle)
 ------------------
@@ -113,211 +137,239 @@ Usage:
   groupbox:AddToggle("FlagName", {
       Text = "Show Watermark",
       Default = false,
-      ValueText = "CurrentValue"  -- Optional, shows on right
+      Risky = false,
+      Tooltip = "Hover text",
+      ValueText = "CurrentValue",
+      Callback = function(val) end,
   })
 
-Structure:
-  [Box] Label---------------------[ValueText]
-   16x16 colored frame
+Methods:
+  toggle:SetValue(bool)        -- change state
+  toggle:SetText(text)         -- rename label
+  toggle:SetValueText(text)    -- update right-side text
+  toggle:OnChanged(fn)         -- register callback
+  toggle:AddKeyPicker(...)     -- chain keybind addon
+  toggle:AddColorPicker(...)   -- chain color picker addon (multiple allowed)
 
-Features:
-  - Box color: ToggleOn (accent) when ON, ToggleOff (gray) when OFF
-  - ValueText option: displays text on right side
-  - SetValueText(txt) method updates right-side text
-  - Stored in getgenv().Toggles[flag]
-
-DROPDOWN (AddDropdown)
-----------------------
-Structure:
-  [DropBtn: Current Value ?]
-              |
-       [DropList: Items]
-
-Features:
-  - dropBtn shows current value + arrow (? or ?)
-  - dropList positioned below button
-  - Tracks position while scrolling (Heartbeat connection)
-  - lib._openPopup = popupObj when open
-  - lib._openPopupTrigger = dropBtn for outside-click handling
-  - Does NOT close on item select (unless multi-select mode)
-
-KEYPICKER (AddKeyPicker)
-------------------------
-Attachment:
-  toggle:AddKeyPicker("Flag", {
-      Default = "F",
-      Mode = "Toggle",  -- "Toggle", "Hold", "Always"
-      NoUI = true       -- Don't show in keybind list
-  })
-
-Structure:
-  Click opens mode menu (Always/Toggle/Hold)
-  + Key listener
-
-Features:
-  - Mode button shows current mode + key
-  - Listening state captures next keypress
-  - Supports "None" for no keybind
-
-COLORPICKER (AddColorPicker)
-----------------------------
-Attachment:
-  label:AddColorPicker("Flag", {
-      Default = Color3.fromRGB(255, 0, 0),
-      Title = "Color"
-  })
-
-Structure:
-  Preview button (shows current color)
-  Click opens popup with:
-    - Saturation/Value gradient
-    - Hue slider
-    - Hex input box
-    - RGB input boxes
-    - Close button
+Stored in: Library.Flags[flag] and getgenv().Toggles[flag]
 
 SLIDER (AddSlider)
 ------------------
-Structure:
-  [Label][ValueText]
-  [=========O----]  (track with fill and thumb)
+Usage:
+  groupbox:AddSlider("FlagName", {
+      Text = "Speed",
+      Default = 16,
+      Min = 0,
+      Max = 100,
+      Rounding = 0,
+      Increment = 5,      -- snap to multiples (also accepts Step)
+      Suffix = " studs/s",
+      Compact = false,
+      HideMax = false,
+      Tooltip = "...",
+      Callback = function(val) end,
+  })
+
+Methods:
+  slider:SetValue(num)    -- change value
+  slider:OnChanged(fn)    -- register callback
 
 Features:
-  - Drag to change value
-  - Configurable min/max/default
-  - Optional value text display
+  - Drag to change, click value label to type directly
+  - Increment/Step snaps value to nearest multiple
+  - Fill bar uses SliderFill theme color
+
+Stored in: Library.Flags[flag] and getgenv().Options[flag]
+
+BUTTON (AddButton)
+------------------
+Usage:
+  local btn = groupbox:AddButton({
+      Text = "Click Me",
+      Func = function() end,
+      DoubleClick = false,   -- true = requires confirmation
+  })
+  btn:AddButton({...})       -- sub-button stacked below
+
+DROPDOWN (AddDropdown)
+----------------------
+Usage:
+  groupbox:AddDropdown("FlagName", {
+      Text = "Target",
+      Values = {"Head", "Torso", "Nearest"},
+      Default = 1,
+      Multi = false,
+      AllowNull = false,
+      SpecialType = nil,       -- "Player" or "Team" for auto-refresh
+      SearchThreshold = 6,     -- search box appears above this count
+      Callback = function(val) end,
+  })
+
+Methods:
+  dropdown:SetValue(val)       -- change selection
+  dropdown:SetValues(tbl)      -- replace all options
+  dropdown:OnChanged(fn)       -- register callback
+
+Features:
+  - Search/filter box auto-appears when > SearchThreshold items
+  - Tracks position while parent scrolls (Heartbeat)
+  - SpecialType "Player"/"Team" auto-refreshes on join/leave
+
+Stored in: Library.Flags[flag] and getgenv().Options[flag]
+
+INPUT (AddInput)
+----------------
+Usage:
+  groupbox:AddInput("FlagName", {
+      Text = "Player Name",
+      Default = "",
+      Placeholder = "Enter name...",
+      Numeric = false,
+      Finished = true,
+      Callback = function(val) end,
+  })
+
+Methods:
+  input:SetValue(val)      -- change text
+  input:OnChanged(fn)      -- register callback
+
+Stored in: Library.Flags[flag] and getgenv().Options[flag]
+
+KEYPICKER (AddKeyPicker)
+------------------------
+Usage (standalone or chained):
+  groupbox:AddKeyPicker("FlagName", {
+      Default = "F",
+      Text = "Feature Key",
+      Mode = "Toggle",
+      Modes = {"Hold", "Toggle", "Always"},
+      NoUI = false,
+      SyncToggleState = "ToggleFlag",
+      Callback = function(isActive) end,
+      ChangedCallback = function(newKey) end,
+  })
+
+Methods:
+  kp:GetState()            -- true/false based on mode
+  kp:SetValue({key, mode}) -- change binding
+  kp:OnChanged(fn)         -- key changed callback
+  kp:OnClick(fn)           -- activation callback
+
+Features:
+  - Modifier combos: Ctrl+X, Shift+F, Alt+G
+  - Mouse buttons: MB1, MB2, MB3
+  - Scroll wheel: ScrollUp, ScrollDown
+  - Right-click button to change mode
+  - Press Escape/Backspace to unbind (sets to "None")
+  - SyncToggleState syncs a toggle with keybind activation
+
+Stored in: Library.Flags[flag] and getgenv().Options[flag]
+
+COLORPICKER (AddColorPicker)
+----------------------------
+Usage (chained onto label or toggle):
+  label:AddColorPicker("FlagName", {
+      Default = Color3.fromRGB(255, 0, 0),
+      Title = "Color",
+      Transparency = 0,
+  })
+
+Methods:
+  cp:SetValue(color, transparency)
+  cp:SetValueRGB(color)
+  cp:OnChanged(fn)
+
+Features:
+  - SV field (174x140) with white/black overlays
+  - Vertical hue bar (20x140)
+  - Transparency slider with checkerboard background
+  - Editable HEX input (#ff0000)
+  - Editable RGB input (255, 0, 0)
+  - Right-click context menu: copy/paste color, copy HEX, copy RGB
+  - Multiple color pickers can be chained on same element
+
+Stored in: Library.Flags[flag] and getgenv().Options[flag]
+
+LABEL (AddLabel)
+----------------
+Usage:
+  local lbl = groupbox:AddLabel("Text")
+  local lbl = groupbox:AddLabel("Wrapped text", true)
+
+Methods:
+  label:SetText(text)
+  label:AddColorPicker(...)   -- chain color picker
+  label:AddKeyPicker(...)     -- chain keybind
+
+DIVIDER (AddDivider)
+--------------------
+  groupbox:AddDivider()  -- horizontal line
+
+BLANK (AddBlank)
+----------------
+  groupbox:AddBlank(height)  -- spacer, default 8px
+
+DEPENDENCY BOX (AddDependencyBox)
+---------------------------------
+Usage:
+  local dep = groupbox:AddDependencyBox()
+  dep:SetupDependencies({
+      { Toggles.MasterToggle, true },   -- visible when ON
+      { Toggles.OtherToggle, false },    -- visible when OFF
+  })
+  dep:AddToggle(...)  -- all element methods available inside
+
+TABBOX
+------
+  local tabbox = tab:AddRightTabbox()
+  local t1 = tabbox:AddTab("Tab 1")
+  t1:AddToggle(...)  -- all element methods available
 
 ================================================================================
 4. THEMEMANAGER.LUA - THEME SYSTEM
 ================================================================================
 
-COLOR SYSTEM
-------------
-All colors stored in lib.Theme table:
+COLOR KEYS
+----------
+All colors stored in Library.Theme:
 
-  Theme = {
-      Background     = Color3,  -- Main window, groupboxes
-      TitleBar       = Color3,  -- Header (same as Background)
-      TabBackground  = Color3,  -- Tab bar background
-      TabActive      = Color3,  -- Active tab button
-      TabInactive    = Color3,  -- Inactive tab button
-      GroupboxBg     = Color3,  -- Groupbox backgrounds
-      ElementBg      = Color3,  -- Input elements
-      ElementBorder  = Color3,  -- Element borders
-      Border         = Color3,  -- Main window border
-      FontPrimary    = Color3,  -- Main text
-      FontSecondary  = Color3,  -- Secondary text
-      Accent         = Color3,  -- Accent color
-      ToggleOn       = Color3,  -- Toggle ON state
-      ToggleOff      = Color3,  -- Toggle OFF state
-      SliderFill     = Color3,  -- Slider fill color
-  }
+  Background, TitleBar, TabBackground, TabActive, TabInactive,
+  GroupboxBg, ElementBg, ElementBorder, Border,
+  FontPrimary, FontSecondary, Accent, ToggleOn, ToggleOff, SliderFill
 
-BUILT-IN THEMES
----------------
-  BuiltInThemes = {
-      Default = {  -- Gray-blue theme
-          Background = Color3.fromRGB(30, 30, 30),
-          Accent = Color3.fromRGB(96, 105, 255),
-          ...
-      },
-      Dark = {     -- Pure grayscale with white accent
-          Background = Color3.fromRGB(20, 20, 20),
-          Accent = Color3.fromRGB(255, 255, 255),
-          ...
-      },
-      Light = {    -- Light theme
-          Background = Color3.fromRGB(245, 245, 245),
-          Accent = Color3.fromRGB(0, 120, 255),
-          ...
-      }
-  }
+REGISTRY-BASED THEMING
+-----------------------
+Library:AddToRegistry(instance, {PropertyName = "ThemeKey"})
+  - When theme changes, all registered instances update automatically
+  - O(1) removal via swap-remove pattern
+  - No descendant iteration needed
+
+BUILT-IN THEMES (ordered)
+--------------------------
+  1. Default     - Gray-blue (Accent: 96, 105, 255)
+  2. Dark        - Pure dark (Accent: 255, 255, 255)
+  3. Light       - Light mode (Accent: 0, 120, 255)
+  4. Dracula     - Purple-dark (Accent: 189, 147, 249)
+  5. Jester      - Red-dark (Accent: 255, 80, 80)
+  6. Mint        - Green-dark (Accent: 76, 209, 139)
+  7. Nord        - Blue-gray (Accent: 136, 192, 208)
+  8. Ocean       - Teal-dark (Accent: 0, 188, 212)
+  9. Rose        - Pink-dark (Accent: 244, 143, 177)
+  10. Tokyo Night - Purple-blue (Accent: 122, 162, 247)
 
 CUSTOM THEMES
 -------------
-Save:
-  ThemeManager:SaveCustomTheme("MyTheme")
-  - Saves as JSON: JopLib/themes/MyTheme.json
-  - Contains all Color3 values as RGB arrays
+  ThemeManager:SaveCustomTheme("MyTheme")   -- save current colors
+  ThemeManager:LoadCustomTheme("MyTheme")   -- load from file
+  ThemeManager:_listCustomThemes()           -- list saved themes
+  - Stored as JSON: JopLib/themes/MyTheme.json
+  - Delete and overwrite via UI with confirmation
 
-Load:
-  ThemeManager:LoadCustomTheme("MyTheme")
-  - Reads JSON, applies colors to lib.Theme
-  - Updates all UI elements
-
-List:
-  ThemeManager:_listCustomThemes()
-  - Returns array of custom theme names
-
-LIVE THEME UPDATING (_applyThemeToGui)
----------------------------------------
-When theme changes, iterates ALL descendants of ScreenGui:
-
-  Frame names:
-    "Box" inside "Toggle_*" -> ToggleOn/ToggleOff based on toggle state
-    "MainFrame", "TitleBar" -> Background
-    "TabBarContainer" -> TabBackground
-    "AccentBar" -> Accent
-    "Groupbox_*", "Tabbox" -> GroupboxBg
-    "Fill" -> SliderFill
-
-  UIStroke:
-    MainFrame/Groupbox borders -> Border
-    Element borders -> ElementBorder
-
-  TextLabel names:
-    "TitleText", "GroupTitle", "Label" -> FontPrimary
-    "Value", "Arrow" -> FontSecondary
-
-  TextButton:
-    "Btn" -> ElementBg + FontPrimary
-    "Tab_*" -> TabActive
-    "DropBtn", "KeyBtn" -> ElementBg
-
-  ScrollingFrame:
-    "LeftColumn", "RightColumn" -> ScrollBarImageColor3 = Accent
-
-UI SETTINGS TAB LAYOUT
-----------------------
-LEFT SIDE:                    RIGHT SIDE:
-+-------------+             +-------------+
-|   Config    |             |    Theme    |
-|             |             |             |
-| Config Name |             | ThemeSelector|
-| ConfigList  |             | (dropdown)   |
-| Save Config |             |             |
-| Load Config |             | Color pickers|
-| Delete      |             | (6 pickers)  |
-| Refresh     |             |             |
-+-------------+             | CustomTheme  |
-| Auto-load   |             | Name input   |
-| Config      |             | CustomThemes |
-| (toggle)    |             | dropdown     |
-+-------------+             |             |
-|   Menu      |             | Save/Load    |
-|             |             | buttons      |
-| Unload btn  |             | Refresh list |
-| Menu keybind|             |             |
-| Show Water- |             | Auto-load    |
-| mark toggle |             | Theme        |
-| Show Keybind|             | (toggle +   |
-| List toggle |             | theme name)  |
-| Keybind     |             |             |
-| Filter      |             +-------------+
-+-------------+
-
-AUTO-LOAD THEME SYSTEM
-----------------------
-Files:
-  JopLib/themes/autoload_theme.txt - stores theme name to load
-
-Flow:
-  1. User toggles "Auto-load Theme" ON
-  2. OnChanged fires -> writes current theme name to autoload_theme.txt
-  3. User changes theme -> ThemeSelector:OnChanged fires
-  4. If auto-load ON, updates file AND updates toggle's ValueText display
-  5. Next script execution: LoadAutoloadTheme() reads file
-  6. Applies theme and enables toggle
+METHODS:
+  ThemeManager:SetLibrary(lib)
+  ThemeManager:SetTheme(name)
+  ThemeManager:ApplyToTab(tab, menuGroupbox)
+  ThemeManager:LoadAutoloadTheme()
 
 ================================================================================
 5. SAVEMANAGER.LUA - CONFIG SYSTEM
@@ -325,126 +377,122 @@ Flow:
 
 WHAT GETS SAVED
 ---------------
-- All Options (dropdown values, slider values, keybinds, colors)
-- All Toggles (true/false states)
-- Excludes theme-related if IgnoreThemeSettings() called
-- Excludes specific indexes via SetIgnoreIndexes({"MenuKeybind", ...})
+All Library.Flags entries, serialized by type:
+  Toggle  -> { type="Toggle", value=bool }
+  Slider  -> { type="Slider", value=number }
+  Dropdown -> { type="Dropdown", value=string/table, multi=bool }
+  Input   -> { type="Input", value=string }
+  KeyPicker -> { type="KeyPicker", value=string, mode=string }
+  ColorPicker -> { type="ColorPicker", value={R,G,B}, transparency=number }
+
+Excludes:
+  - Theme-related flags if IgnoreThemeSettings() called
+  - Specific flags via SetIgnoreIndexes({"MenuKeybind", ...})
+
+VERSION MIGRATION
+-----------------
+Configs include a _version field. When loading older configs:
+
+  SaveManager:SetConfigVersion(2)
+  SaveManager:AddMigration(1, function(data)
+      -- transform data from version 1 -> 2
+      if data["OldFlag"] then
+          data["NewFlag"] = data["OldFlag"]
+          data["OldFlag"] = nil
+      end
+      return data
+  end)
+
+Migration functions run sequentially: 0->1, 1->2, etc.
+Missing migrations are skipped (version increments anyway).
+Legacy configs without _version are treated as version 0.
 
 FILE STRUCTURE
 --------------
-  JopLib/settings/[name].json
-  JopLib/settings/autoload_config.txt
-
-JSON Format:
-  {
-      "Options": {
-          "ThemeSelector": "Dark",
-          "SliderValue": 50,
-          ...
-      },
-      "Toggles": {
-          "ShowWatermark": true,
-          "ShowKeybindFrame": false,
-          ...
-      }
-  }
-
-AUTO-LOAD CONFIG SYSTEM
------------------------
-Files:
-  JopLib/settings/autoload_config.txt - stores config name to load
-
-Flow:
-  1. User toggles "Auto-load Config" ON
-  2. OnChanged fires -> writes current config name to autoload_config.txt
-  3. Next script execution: LoadAutoloadConfig() reads file
-  4. Calls Load(name) to restore all options/toggles
+  JopLib/configs/[name].json
+  JopLib/configs/autoload.txt
 
 METHODS
----------
-  SaveManager:SetLibrary(lib)              - Connect to Library
-  SaveManager:SetAutoload(name)            - Set autoload config
-  SaveManager:GetAutoload()                - Get autoload config name
-  SaveManager:LoadAutoloadConfig()         - Load autoload on startup
-  SaveManager:Save(name)                   - Save current state
-  SaveManager:Load(name)                   - Load saved state
-  SaveManager:Delete(name)                 - Delete config
-  SaveManager:GetConfigs()                 - List all configs
-  SaveManager:IgnoreThemeSettings()        - Exclude theme from save
-  SaveManager:SetIgnoreIndexes({...})      - Exclude specific flags
-  SaveManager:BuildConfigSection(tab)      - Create Config UI
+-------
+  SaveManager:SetLibrary(lib)
+  SaveManager:SetFolder(folder)
+  SaveManager:SetConfigVersion(num)
+  SaveManager:AddMigration(fromVersion, fn)
+  SaveManager:Save(name)
+  SaveManager:Load(name)
+  SaveManager:Delete(name)
+  SaveManager:GetConfigs()
+  SaveManager:IgnoreThemeSettings()
+  SaveManager:SetIgnoreIndexes({...})
+  SaveManager:BuildConfigSection(tab)
+  SaveManager:LoadAutoloadConfig()
 
 ================================================================================
 6. DATA FLOW & CONNECTIONS
 ================================================================================
 
-EXAMPLE SETUP (from Example.lua)
---------------------------------
-  -- 1. Create window
-  local Window = Library:CreateWindow({
-      Title = "MyScript",
-      Center = true
-  })
+RECOMMENDED SETUP PATTERN
+--------------------------
+  -- 1. Load modules
+  local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+  local Elements = loadstring(game:HttpGet(repo .. "Elements.lua"))()
+  local ThemeManager = loadstring(game:HttpGet(repo .. "ThemeManager.lua"))()
+  local SaveManager = loadstring(game:HttpGet(repo .. "SaveManager.lua"))()
 
-  -- 2. Create tabs
+  Elements:Setup(Library)
+  ThemeManager:SetLibrary(Library)
+  SaveManager:SetLibrary(Library)
+
+  local Toggles = Library.Toggles
+  local Options = Library.Options
+
+  -- 2. Create window + tabs
+  local Window = Library:CreateWindow({ Title = "Script", Center = true })
   local Tabs = {
       Main = Window:AddTab("Main"),
-      ["GUI Settings"] = Window:AddTab("GUI Settings"),
+      Settings = Window:AddTab("GUI Settings"),
   }
 
-  -- 3. Add Menu groupbox
-  local MenuGroup = Tabs["GUI Settings"]:AddLeftGroupbox("Menu")
-  MenuGroup:AddButton({Text="Unload", Func=function() Library:Unload() end})
-  MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
-      Default = "End", NoUI = true
-  })
+  -- 3. Add elements to tabs
+  local Left = Tabs.Main:AddLeftGroupbox("Features")
+  Left:AddToggle("Speed", { Text = "Speed Hack", Default = false })
 
-  -- 4. Connect managers
-  SaveManager:BuildConfigSection(Tabs["GUI Settings"])  -- Creates Config UI
-  ThemeManager:ApplyToTab(Tabs["GUI Settings"], MenuGroup)  -- Creates Theme UI
+  -- 4. Add menu controls
+  local Menu = Tabs.Settings:AddLeftGroupbox("Menu")
+  Menu:AddButton({ Text = "Unload", Func = function() Library:Unload() end })
+  Menu:AddLabel(""):AddKeyPicker("MenuKeybind", { Default = "End", NoUI = true })
+  Library.ToggleKeybind = Options.MenuKeybind
 
-  -- 5. Load auto-saved settings
+  -- 5. Connect managers
+  SaveManager:IgnoreThemeSettings()
+  SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+  SaveManager:BuildConfigSection(Tabs.Settings)
+  ThemeManager:ApplyToTab(Tabs.Settings, Menu)
+
+  -- 6. Load saved settings
   SaveManager:LoadAutoloadConfig()
   ThemeManager:LoadAutoloadTheme()
-
-GLOBAL ACCESS PATTERN
-----------------------
-  -- Reading values
-  if getgenv().Toggles.ShowWatermark.Value then
-      -- watermark is enabled
-  end
-
-  local themeName = getgenv().Options.ThemeSelector.Value
-
-  -- Listening to changes
-  getgenv().Toggles.ShowWatermark:OnChanged(function(newVal)
-      -- do something when toggle changes
-  end)
-
-  getgenv().Options.ThemeSelector:OnChanged(function(newVal)
-      -- do something when theme changes
-  end)
 
 ================================================================================
 7. FILE STRUCTURE
 ================================================================================
 
 EXECUTION FOLDER:
-  JopLib/                              -- Base folder
-      settings/                          -- Config files
-          my_config.json                 -- Saved config
-          autoload_config.txt            -- Config auto-load
-      themes/                            -- Theme files
-          MyTheme.json                   -- Custom theme
-          autoload_theme.txt             -- Theme auto-load
+  JopLib/
+      configs/
+          my_config.json
+          autoload.txt
+      themes/
+          MyTheme.json
+          autoload_theme.txt
 
 GITHUB REPO:
-  Library.lua      -- Core window/popup/notification system
-  Elements.lua     -- UI components (toggle, dropdown, slider, etc.)
-  ThemeManager.lua -- Theme management
-  SaveManager.lua  -- Config save/load
-  Example.lua      -- Usage example
-  README.md        -- Basic documentation
+  Library.lua        -- Core: window, tabs, notifications, watermark
+  Elements.lua       -- UI elements: toggle, slider, dropdown, etc.
+  ThemeManager.lua   -- Theme system with 10 built-in themes
+  SaveManager.lua    -- Config save/load with migration
+  Example.lua        -- Full demo script
+  README.md          -- API documentation
 
 ================================================================================
 8. KEY TECHNICAL DETAILS
@@ -452,51 +500,50 @@ GITHUB REPO:
 
 TWEENING
 --------
-All smooth animations use TweenService:
-  
   Tween(object, {Property = value}, duration):Play()
+  TweenInfo is cached per duration for performance.
 
-Examples:
-  - Toggle box color change: 0.15s
-  - Popup open/close: 0.2s
-  - Notification fade: 0.3s
+  Toggle box color: 0.15s
+  Notification slide: 0.25s
 
 ZINDEX MANAGEMENT
 -----------------
-  Main window:     ZIndex 10
-  Popups:          ZIndex 50+
-  Click catcher:   ZIndex 100 (invisible full-screen frame)
+  Main window:    default
+  Popups:         ZIndex 100+
+  Popup items:    ZIndex 101+
+  SV cursors:     ZIndex 105+
 
 POPUP POSITION TRACKING
 -----------------------
-Dropdowns track parent button position every heartbeat:
+Dropdowns and color pickers track parent position via Heartbeat:
 
-  dropTrackConn = RunService.Heartbeat:Connect(function()
-      dropList.Position = UDim2.new(0, ap.X, 0, ap.Y + as.Y + 2)
+  RunService.Heartbeat:Connect(function()
+      popup.Position = UDim2.new(0, parent.AbsolutePosition.X, ...)
   end)
 
 FONT SYSTEM
 -----------
-Library defines font faces:
+  local FontFamily = "rbxasset://fonts/families/Inter.json"
 
-  Library.FontRegular  = Font.new("rbxasset://fonts/families/GothamSSm.json")
-  Library.FontSemiBold = Font.new("rbxasset://fonts/families/GothamSSm.json", 
-                                  Enum.FontWeight.SemiBold)
-  Library.FontBold     = Font.new("rbxasset://fonts/families/GothamSSm.json",
-                                  Enum.FontWeight.Bold)
+  Library.FontRegular  = Font.new(FontFamily)
+  Library.FontSemiBold = Font.new(FontFamily, Enum.FontWeight.SemiBold)
+  Library.FontBold     = Font.new(FontFamily, Enum.FontWeight.Bold)
 
 TEXT SIZES
 ----------
   Window title:     16px (Bold)
   Groupbox title:   14px (Bold)
-  Toggle label:     13px (Regular)
+  Tab label:        14px (SemiBold)
+  Toggle label:     14px (Regular)
   Toggle value:     12px (Regular)
-  Dropdown text:    12px (Regular)
-  Keybind mode:     11px (Regular)
+  Slider value:     13px (Regular)
+  Dropdown text:    13px (Regular)
+  Button text:      13px (Regular)
+  Input text:       13px (Regular)
+  Keybind button:   12px (Regular)
   Notification:     14px (Regular)
   Watermark:        14px (Regular)
-  Keybind list:     13px (Regular)
-  Keybind entry:    13px (Regular/12px for mode)
+  Label:            13px (Regular)
 
 CORNER RADII
 ------------
@@ -509,10 +556,12 @@ CORNER RADII
   Notification:     6px
   Watermark:        6px
   Keybind list:     6px
+  Color picker:     6px
 
 COLORS (Default Theme)
 -----------------------
   Background:       30, 30, 30
+  TitleBar:         30, 30, 30
   TabBackground:    35, 35, 35
   TabActive:        40, 40, 40
   TabInactive:      30, 30, 30

@@ -1,10 +1,9 @@
 # JopLib — Roblox UI Library
 
-A full-featured Roblox UI library inspired by Linoria. Uses native Roblox Instances (no Drawing API for UI), parented to CoreGui.
+A full-featured Roblox UI library inspired by Linoria. Uses native Roblox Instances (no Drawing API), parented to CoreGui. Modular architecture with instance-scoped state isolation for safe multi-script usage.
 
 ## Loading
 
-### From GitHub
 ```lua
 local repo = "https://raw.githubusercontent.com/Tzvyy/JopLib/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
@@ -15,18 +14,10 @@ local SaveManager = loadstring(game:HttpGet(repo .. "SaveManager.lua"))()
 Elements:Setup(Library)
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
-```
 
-### Local (readfile)
-```lua
-local Library = loadstring(readfile("JopLib/Library.lua"))()
-local Elements = loadstring(readfile("JopLib/Elements.lua"))()
-local ThemeManager = loadstring(readfile("JopLib/ThemeManager.lua"))()
-local SaveManager = loadstring(readfile("JopLib/SaveManager.lua"))()
-
-Elements:Setup(Library)
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
+-- Instance-scoped proxy tables (safe with multiple scripts)
+local Toggles = Library.Toggles
+local Options = Library.Options
 ```
 
 ## Quick Start
@@ -45,11 +36,14 @@ local Right = Tab:AddRightGroupbox("Settings")
 Left:AddToggle("MyToggle", {
     Text = "Enable Feature",
     Default = false,
-    Callback = function(value) end,  -- optional instant callback
+    Risky = false,            -- optional, shows red warning color
+    Tooltip = "Hover text",   -- optional
+    Callback = function(value) end,
 })
 
 Toggles.MyToggle:OnChanged(function(value) print(value) end)
 Toggles.MyToggle:SetValue(true)
+Toggles.MyToggle:SetText("New Label")  -- rename after creation
 print(Toggles.MyToggle.Value)
 ```
 
@@ -60,28 +54,32 @@ Left:AddSlider("MySlider", {
     Default = 16,
     Min = 0,
     Max = 100,
-    Rounding = 0,    -- 0 = integer, 1 = 0.1, 2 = 0.01
-    Suffix = " studs/s",
+    Rounding = 0,        -- 0 = integer, 1 = 0.1, 2 = 0.01
+    Increment = 5,       -- optional, snaps to multiples (also accepts Step)
+    Suffix = " studs/s", -- optional
+    Compact = false,     -- optional, single-line mode
+    HideMax = false,     -- optional, hides "/ max" text
+    Tooltip = "...",     -- optional
 })
 
 Options.MySlider:OnChanged(function(value) print(value) end)
 Options.MySlider:SetValue(50)
+-- Click the value label to type a number directly
 ```
 
 ### Button
 ```lua
--- Table API (supports sub-buttons)
 local MyButton = Left:AddButton({
     Text = "Click Me",
     Func = function() print("Clicked!") end,
-    DoubleClick = false,
+    DoubleClick = false,  -- true = requires confirmation click
 })
 
--- Sub-button (appears stacked below)
+-- Sub-button (stacked below)
 MyButton:AddButton({
     Text = "Sub Button",
     Func = function() print("Sub clicked!") end,
-    DoubleClick = true,  -- requires double-click to confirm
+    DoubleClick = true,
 })
 ```
 
@@ -91,7 +89,9 @@ MyButton:AddButton({
 Left:AddDropdown("MyDrop", {
     Text = "Target",
     Values = { "Head", "Torso", "Nearest" },
-    Default = 1,  -- index or string
+    Default = 1,           -- index or string
+    AllowNull = false,     -- optional, allows deselecting
+    SearchThreshold = 6,   -- optional, search box appears when item count exceeds this
 })
 
 -- Multi select
@@ -102,9 +102,13 @@ Left:AddDropdown("Features", {
     Default = {},
 })
 
+-- Auto-refreshing dropdowns
+Left:AddDropdown("Target", { Text = "Player", SpecialType = "Player" })
+Left:AddDropdown("Team", { Text = "Team", SpecialType = "Team" })
+
 Options.MyDrop:OnChanged(function(value) print(value) end)
 Options.MyDrop:SetValue("Head")
-Options.MyDrop:SetValues({ "New", "Values" })  -- replace options
+Options.MyDrop:SetValues({ "New", "Values" })  -- replace all options
 ```
 
 ### Text Input
@@ -113,11 +117,12 @@ Left:AddInput("MyInput", {
     Text = "Player Name",
     Default = "",
     Placeholder = "Enter name...",
-    Numeric = false,
-    Finished = true,  -- fires on focus lost only
+    Numeric = false,    -- true = numbers only
+    Finished = true,    -- true = fires on focus lost, false = fires on every keystroke
 })
 
 Options.MyInput:OnChanged(function(value) print(value) end)
+Options.MyInput:SetValue("new text")
 ```
 
 ### KeyPicker (Keybind)
@@ -126,20 +131,29 @@ Options.MyInput:OnChanged(function(value) print(value) end)
 Left:AddKeyPicker("MyKey", {
     Default = "None",
     Text = "Feature Key",
-    Mode = "Toggle",  -- "Hold", "Toggle", "Always"
+    Mode = "Toggle",           -- "Hold", "Toggle", "Always"
+    Modes = {"Hold", "Toggle", "Always"},  -- optional, restrict available modes
+    NoUI = false,              -- optional, hides from keybind list
 })
 
--- Chained onto a toggle
+-- Chained onto a toggle (syncs toggle state with keybind)
 Left:AddToggle("Speed", { Text = "Speed" }):AddKeyPicker("SpeedKey", {
     Default = "None",
     Text = "Speed",
+    SyncToggleState = "Speed",  -- flag of toggle to sync with
 })
 
--- Right-click the keybind button to cycle mode
-Options.SpeedKey:GetState()  -- returns true/false based on mode
-Options.SpeedKey.Value       -- the bound key name
-Options.SpeedKey.Mode        -- current mode
+-- Right-click the button to change mode
+Options.SpeedKey:GetState()  -- true/false based on mode
+Options.SpeedKey.Value       -- bound key name (e.g. "F", "Ctrl+X", "ScrollUp")
+Options.SpeedKey.Mode        -- current mode string
 ```
+
+**Keybind features:**
+- Modifier combos: `Ctrl+X`, `Shift+F`, `Alt+G`
+- Mouse buttons: `MB1`, `MB2`, `MB3`
+- Scroll wheel: `ScrollUp`, `ScrollDown`
+- Press Escape/Backspace to unbind
 
 ### ColorPicker
 ```lua
@@ -150,120 +164,157 @@ Left:AddLabel("Box Color"):AddColorPicker("BoxColor", {
     Transparency = 0,  -- optional, 0 = opaque, 1 = fully transparent
 })
 
--- Chained onto a toggle
-Left:AddToggle("ShowBox", { Text = "Show Box" }):AddColorPicker("BoxColor", {
+-- Chained onto a toggle (multiple pickers supported)
+Left:AddToggle("ShowBox", { Text = "Show" }):AddColorPicker("BoxCol", {
     Default = Color3.fromRGB(255, 50, 50),
+}):AddColorPicker("BoxCol2", {
+    Default = Color3.fromRGB(50, 50, 255),
 })
 
 Options.BoxColor:OnChanged(function(color) print(color) end)
 Options.BoxColor:SetValue(Color3.fromRGB(0, 255, 0))
 Options.BoxColor:SetValue(Color3.fromRGB(0, 255, 0), 0.5)  -- with transparency
-Options.BoxColor.Value         -- current Color3
-Options.BoxColor.Transparency  -- current transparency (0-1)
 ```
 
-**Color Picker Features:**
-- Large saturation/value field with hue bar
-- Editable HEX input (e.g. `#00baff`)
-- Editable RGB input (e.g. `0, 186, 255`)
-- Transparency slider with checkerboard preview
-- Opacity reflects on the preview swatch
-- **Right-click** the color swatch to:
-  - **Copy color** — stores color + transparency internally
-  - **Paste color** — applies a previously copied color
-  - **Copy HEX** — copies hex to clipboard (e.g. `#ff0000`)
-  - **Copy RGB** — copies RGB to clipboard (e.g. `255, 0, 0`)
+**Color picker features:**
+- SV field + hue bar + transparency slider with checkerboard
+- Editable HEX and RGB inputs
+- Right-click: copy/paste color, copy HEX, copy RGB to clipboard
 
-### Label & Divider
+### Label, Divider & Blank
 ```lua
 Left:AddLabel("Some info text")
-Left:AddLabel("Wrapping text here", true)  -- second arg enables word wrap
+Left:AddLabel("Wrapping text here", true)  -- enables word wrap
 Left:AddDivider()
+Left:AddBlank(8)  -- spacer (height in pixels, default 8)
 
--- Label with color picker attached
-Left:AddLabel("Accent Color"):AddColorPicker("AccentCol", {
-    Default = Color3.fromRGB(96, 105, 255),
-})
+-- Labels support dynamic text
+local myLabel = Left:AddLabel("Initial text")
+myLabel:SetText("Updated text")
 ```
 
 ### DependencyBox
-Shows/hides elements based on a toggle's state.
+Shows/hides elements based on toggle state.
 ```lua
-Left:AddToggle("ControlToggle", { Text = "Master Toggle" })
+Left:AddToggle("Master", { Text = "Master Toggle" })
 
 local dep = Left:AddDependencyBox()
 dep:SetupDependencies({
-    { Toggles.ControlToggle, true },  -- visible when ControlToggle is ON
+    { Toggles.Master, true },  -- visible when Master is ON
 })
-dep:AddSlider("SubSlider", { Text = "Sub Slider", Min = 0, Max = 100, Default = 50 })
-dep:AddLabel("Only visible when Master Toggle is ON")
+dep:AddSlider("Sub", { Text = "Sub Slider", Min = 0, Max = 100, Default = 50 })
 ```
 
 ### TabBox
 ```lua
 local TabBox = Tab:AddRightTabbox()
 local Tab1 = TabBox:AddTab("Tab 1")
-Tab1:AddToggle("T1Toggle", { Text = "Toggle" })
+Tab1:AddToggle("T1", { Text = "Toggle" })
 local Tab2 = TabBox:AddTab("Tab 2")
-Tab2:AddDropdown("T2Drop", { Text = "Drop", Values = {"A","B","C"}, Default = 1 })
+Tab2:AddDropdown("T2", { Text = "Drop", Values = {"A","B","C"}, Default = 1 })
+```
+
+### Groupbox
+```lua
+local Left = Tab:AddLeftGroupbox("Features")
+local Right = Tab:AddRightGroupbox("Settings")
+
+Left:SetTitle("New Title")  -- rename groupbox header at runtime
+```
+
+## Window API
+
+```lua
+local Window = Library:CreateWindow({
+    Title = "My Script",
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+})
+
+-- Tab icons (optional second argument)
+local Tab = Window:AddTab("Combat", { Icon = "rbxassetid://7733960981" })
+
+Window:SetTitle("New Title")
+Window:Resize(700, 500)       -- width, height
+Window:SwitchTab(Tab)
 ```
 
 ## ThemeManager
+
 ```lua
 ThemeManager:SetLibrary(Library)
-ThemeManager:ApplyToTab(Tabs.Settings, MenuGroupbox)  -- adds theme dropdown + color pickers + custom themes
+ThemeManager:ApplyToTab(Tabs.Settings, MenuGroupbox)
 ThemeManager:LoadAutoloadTheme()
 ThemeManager:SetTheme("Default")  -- programmatic switch
 ```
 
-Built-in themes: **Default**, **Dark**, **Light**
+**Built-in themes:** Default, Dark, Light, Dracula, Jester, Mint, Nord, Ocean, Rose, Tokyo Night
 
-Custom themes can be saved/loaded/deleted via the UI. Delete requires a confirmation click. Use "Set as autoload" to auto-apply on startup.
+Custom themes: save/load/delete/overwrite via the UI. Set as autoload to auto-apply on startup.
 
 ## SaveManager
+
 ```lua
 SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()               -- prevent theme colors from leaking into configs
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" }) -- ignore specific flags
-SaveManager:BuildConfigSection(Tabs.Settings)   -- adds config UI
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+SaveManager:BuildConfigSection(Tabs.Settings)
 SaveManager:LoadAutoloadConfig()
 ```
 
-Config UI provides: **Save**, **Load**, **Overwrite**, **Delete** (with confirmation), **Refresh**, and **Set as autoload**.
-
-ShowWatermark and ShowKeybindFrame toggles are saved with configs (not ignored by `IgnoreThemeSettings`).
-
-## Notifications
+**Config version migration:**
 ```lua
-Library:Notify("Hello world!", 3)  -- text, duration in seconds
+SaveManager:SetConfigVersion(2)
+SaveManager:AddMigration(1, function(data)
+    -- Rename a flag from old to new
+    if data["OldFlag"] then
+        data["NewFlag"] = data["OldFlag"]
+        data["OldFlag"] = nil
+    end
+    return data
+end)
 ```
 
-## Watermark
+Config UI: Save, Load, Overwrite, Delete (with confirmation), Refresh, Set as autoload.
+
+## Notifications
+
 ```lua
-Library:SetWatermark("My Script | 60fps")
+Library:Notify("Hello world!", 3)  -- text, duration (seconds)
+```
+
+Notifications stack from the bottom-right with accent bar, max 5 visible at once.
+
+## Watermark
+
+```lua
+Library:SetWatermark("My Script | 60fps | 20ms")
 Library:SetWatermarkVisibility(true)
 ```
 
 ## Unload
+
 ```lua
 Library:OnUnload(function()
     print("Cleanup here")
 end)
-Library:Unload()  -- destroys GUI, disconnects all events
+Library:Unload()  -- destroys GUI, disconnects all events, cleans up globals
 ```
 
-## Globals
-- `Toggles` — table of all toggle objects, keyed by flag
-- `Options` — table of all option objects (sliders, dropdowns, inputs, keypickers, colorpickers), keyed by flag
+## Instance-Scoped State
+
+Each `Library` instance maintains its own `Flags` table. The global `Toggles`/`Options` tables are still populated for compatibility, but `Library.Toggles` and `Library.Options` are proxy tables that only return flags belonging to that instance. This prevents collisions when multiple scripts use JopLib simultaneously.
 
 ## Font
-Uses **Inter** font family via `FontFace`. Change in `Library.lua`:
+
+Uses **Inter** font family. Change globally in `Library.lua`:
 ```lua
 local FontFamily = "rbxasset://fonts/families/Inter.json"
 ```
 
 ## File Storage
-All data is stored in the executor's workspace under `JopLib/`:
+
 ```
 JopLib/
 ├── configs/              — saved user configurations
@@ -275,13 +326,13 @@ JopLib/
 ```
 
 ## Source Files
+
 ```
 JopLib/
-├── Library.lua        — Core window, tabs, groupboxes, layout
-├── Elements.lua       — All UI elements (toggle, slider, dropdown, color picker, etc.)
-├── ThemeManager.lua   — Theme system with built-in + custom themes
-├── SaveManager.lua    — Config save/load system
-├── Example.lua        — Demo script (loads from GitHub)
-├── ExampleLocal.lua   — Demo script (loads from local files)
+├── Library.lua        — Core: window, tabs, groupboxes, notifications, watermark
+├── Elements.lua       — UI elements: toggle, slider, dropdown, color picker, etc.
+├── ThemeManager.lua   — Theme system with 10 built-in + custom themes
+├── SaveManager.lua    — Config save/load with version migration
+├── Example.lua        — Demo script showcasing all features
 └── README.md          — This file
 ```
