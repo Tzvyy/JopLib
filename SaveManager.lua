@@ -132,6 +132,13 @@ function SaveManager:_deserialize(data)
     data = self:_migrateData(data)
     local flags = self.Library and self.Library.Flags or {}
 
+    if self.Library and self.Library.DebugLogs then
+        local entryCount, flagCount = 0, 0
+        for k in pairs(data) do if k ~= "_version" then entryCount = entryCount + 1 end end
+        for _ in pairs(flags) do flagCount = flagCount + 1 end
+        print("[SaveManager] Deserializing " .. entryCount .. " entries | Flags registered: " .. flagCount)
+    end
+
     for flag, entry in pairs(data) do
         if flag == "_version" then continue end
         if self.IgnoreIndexes[flag] then continue end
@@ -140,9 +147,15 @@ function SaveManager:_deserialize(data)
 
         local t = entry.type
         if t == "Toggle" then
-            pcall(obj.SetValue, obj, entry.value, true)
+            local ok, err = pcall(obj.SetValue, obj, entry.value, true)
+            if not ok and self.Library and self.Library.DebugLogs then
+                print("[SaveManager] Failed to load Toggle '" .. flag .. "':", err)
+            end
         elseif t == "Slider" or t == "Input" then
-            pcall(obj.SetValue, obj, entry.value)
+            local ok, err = pcall(obj.SetValue, obj, entry.value)
+            if not ok and self.Library and self.Library.DebugLogs then
+                print("[SaveManager] Failed to load " .. t .. " '" .. flag .. "':", err)
+            end
         elseif t == "Dropdown" then
             if entry.multi then
                 local val = {}
