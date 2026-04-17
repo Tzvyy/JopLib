@@ -10,7 +10,6 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
 local TextService = game:GetService("TextService")
-local Teams = game:GetService("Teams")
 local Mouse = LocalPlayer:GetMouse()
 
 local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
@@ -25,7 +24,6 @@ end
 
 getgenv().Toggles = getgenv().Toggles or {}
 getgenv().Options = getgenv().Options or {}
-getgenv()._JopLibInstances = getgenv()._JopLibInstances or {}
 
 -- ============================================================
 -- FONT CONFIG (single place to change)
@@ -144,7 +142,6 @@ Library._unloadCallbacks = {}
 Library._openPopup = nil
 Library.NotifyOnError = true
 Library.RiskColor = Color3.fromRGB(255, 50, 50)
-Library._instanceId = tostring(math.random(100000, 999999))
 
 -- Instance-scoped proxy tables for Toggles and Options
 -- These ensure each Library instance only sees its own flags,
@@ -243,20 +240,23 @@ end
 
 function Library:RemoveFromRegistry(instance)
     local data = self.RegistryMap[instance]
-    if data then
-        for idx = #self.Registry, 1, -1 do
-            if self.Registry[idx] == data then
-                table.remove(self.Registry, idx)
-                break
-            end
+    if not data then return end
+    self.RegistryMap[instance] = nil
+    local reg = self.Registry
+    for i = #reg, 1, -1 do
+        if reg[i] == data then
+            reg[i] = reg[#reg]
+            reg[#reg] = nil
+            break
         end
-        for idx = #self.HudRegistry, 1, -1 do
-            if self.HudRegistry[idx] == data then
-                table.remove(self.HudRegistry, idx)
-                break
-            end
+    end
+    local hud = self.HudRegistry
+    for i = #hud, 1, -1 do
+        if hud[i] == data then
+            hud[i] = hud[#hud]
+            hud[#hud] = nil
+            break
         end
-        self.RegistryMap[instance] = nil
     end
 end
 

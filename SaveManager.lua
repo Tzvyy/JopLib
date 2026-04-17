@@ -59,12 +59,6 @@ function SaveManager:_ensureFolder()
     return true
 end
 
-function SaveManager:_ensureBaseFolder()
-    if typeof(isfolder) ~= "function" then return false end
-    if not isfolder("JopLib") then makefolder("JopLib") end
-    return true
-end
-
 -- ============================================================
 -- SERIALIZE / DESERIALIZE
 -- ============================================================

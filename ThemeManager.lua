@@ -9,6 +9,7 @@ local ThemeManager = {}
 ThemeManager.Library = nil
 ThemeManager.Folder = "JopLib"
 ThemeManager.BuiltInThemes = {}
+ThemeManager.ThemeOrder = { "Default", "Dark", "Light", "Dracula", "Jester", "Mint", "Nord", "Ocean", "Rose", "Tokyo Night" }
 ThemeManager._currentThemeName = "Default"
 
 -- ============================================================
@@ -33,6 +34,24 @@ ThemeManager.BuiltInThemes["Default"] = {
     Border           = Color3.fromRGB(55, 55, 62),
 }
 
+ThemeManager.BuiltInThemes["Dark"] = {
+    Background       = Color3.fromRGB(15, 15, 15),
+    TitleBar         = Color3.fromRGB(18, 18, 18),
+    TabBackground    = Color3.fromRGB(20, 20, 20),
+    TabActive        = Color3.fromRGB(30, 30, 30),
+    TabInactive      = Color3.fromRGB(20, 20, 20),
+    GroupboxBg       = Color3.fromRGB(18, 18, 18),
+    ElementBg        = Color3.fromRGB(28, 28, 28),
+    ElementBorder    = Color3.fromRGB(40, 40, 40),
+    FontPrimary      = Color3.fromRGB(210, 210, 210),
+    FontSecondary    = Color3.fromRGB(140, 140, 140),
+    Accent           = Color3.fromRGB(220, 220, 220),
+    ToggleOn         = Color3.fromRGB(220, 220, 220),
+    ToggleOff        = Color3.fromRGB(40, 40, 40),
+    SliderFill       = Color3.fromRGB(220, 220, 220),
+    Border           = Color3.fromRGB(35, 35, 35),
+}
+
 ThemeManager.BuiltInThemes["Light"] = {
     Background       = Color3.fromRGB(240, 240, 240),
     TitleBar         = Color3.fromRGB(230, 230, 230),
@@ -51,22 +70,22 @@ ThemeManager.BuiltInThemes["Light"] = {
     Border           = Color3.fromRGB(190, 190, 190),
 }
 
-ThemeManager.BuiltInThemes["Dark"] = {
-    Background       = Color3.fromRGB(15, 15, 15),
-    TitleBar         = Color3.fromRGB(18, 18, 18),
-    TabBackground    = Color3.fromRGB(20, 20, 20),
-    TabActive        = Color3.fromRGB(30, 30, 30),
-    TabInactive      = Color3.fromRGB(20, 20, 20),
-    GroupboxBg       = Color3.fromRGB(18, 18, 18),
-    ElementBg        = Color3.fromRGB(28, 28, 28),
-    ElementBorder    = Color3.fromRGB(40, 40, 40),
-    FontPrimary      = Color3.fromRGB(210, 210, 210),
-    FontSecondary    = Color3.fromRGB(140, 140, 140),
-    Accent           = Color3.fromRGB(220, 220, 220),
-    ToggleOn         = Color3.fromRGB(220, 220, 220),
-    ToggleOff        = Color3.fromRGB(40, 40, 40),
-    SliderFill       = Color3.fromRGB(220, 220, 220),
-    Border           = Color3.fromRGB(35, 35, 35),
+ThemeManager.BuiltInThemes["Dracula"] = {
+    Background       = Color3.fromRGB(40, 42, 54),
+    TitleBar         = Color3.fromRGB(44, 47, 60),
+    TabBackground    = Color3.fromRGB(47, 50, 65),
+    TabActive        = Color3.fromRGB(56, 58, 75),
+    TabInactive      = Color3.fromRGB(47, 50, 65),
+    GroupboxBg       = Color3.fromRGB(44, 47, 60),
+    ElementBg        = Color3.fromRGB(56, 58, 75),
+    ElementBorder    = Color3.fromRGB(68, 71, 90),
+    FontPrimary      = Color3.fromRGB(248, 248, 242),
+    FontSecondary    = Color3.fromRGB(180, 180, 175),
+    Accent           = Color3.fromRGB(189, 147, 249),
+    ToggleOn         = Color3.fromRGB(189, 147, 249),
+    ToggleOff        = Color3.fromRGB(68, 71, 90),
+    SliderFill       = Color3.fromRGB(189, 147, 249),
+    Border           = Color3.fromRGB(60, 63, 80),
 }
 
 ThemeManager.BuiltInThemes["Jester"] = {
@@ -159,24 +178,6 @@ ThemeManager.BuiltInThemes["Ocean"] = {
     Border           = Color3.fromRGB(36, 48, 64),
 }
 
-ThemeManager.BuiltInThemes["Dracula"] = {
-    Background       = Color3.fromRGB(40, 42, 54),
-    TitleBar         = Color3.fromRGB(44, 47, 60),
-    TabBackground    = Color3.fromRGB(47, 50, 65),
-    TabActive        = Color3.fromRGB(56, 58, 75),
-    TabInactive      = Color3.fromRGB(47, 50, 65),
-    GroupboxBg       = Color3.fromRGB(44, 47, 60),
-    ElementBg        = Color3.fromRGB(56, 58, 75),
-    ElementBorder    = Color3.fromRGB(68, 71, 90),
-    FontPrimary      = Color3.fromRGB(248, 248, 242),
-    FontSecondary    = Color3.fromRGB(180, 180, 175),
-    Accent           = Color3.fromRGB(189, 147, 249),
-    ToggleOn         = Color3.fromRGB(189, 147, 249),
-    ToggleOff        = Color3.fromRGB(68, 71, 90),
-    SliderFill       = Color3.fromRGB(189, 147, 249),
-    Border           = Color3.fromRGB(60, 63, 80),
-}
-
 ThemeManager.BuiltInThemes["Nord"] = {
     Background       = Color3.fromRGB(46, 52, 64),
     TitleBar         = Color3.fromRGB(50, 56, 70),
@@ -209,10 +210,11 @@ end
 
 function ThemeManager:GetThemes()
     local names = {}
-    for name in pairs(self.BuiltInThemes) do
-        table.insert(names, name)
+    for _, name in ipairs(self.ThemeOrder) do
+        if self.BuiltInThemes[name] then
+            names[#names + 1] = name
+        end
     end
-    table.sort(names)
     return names
 end
 
@@ -243,51 +245,39 @@ function ThemeManager:SetTheme(name)
     return true
 end
 
-function ThemeManager:_getBaseFolder()
-    return "JopLib"
-end
-
 function ThemeManager:_getThemesFolder()
-    return self:_getBaseFolder() .. "/themes"
+    return self.Folder .. "/themes"
 end
 
 function ThemeManager:_getAutoloadPath()
-    return self:_getThemesFolder() .. "/autoload.txt"
+    return self.Folder .. "/themes/autoload.txt"
 end
 
 function ThemeManager:_getDefaultThemePath()
-    return self:_getThemesFolder() .. "/default.txt"
+    return self.Folder .. "/themes/default.txt"
 end
 
 function ThemeManager:_ensureFolders()
     pcall(function()
         if typeof(isfolder) == "function" then
-            local base = self:_getBaseFolder()
-            if not isfolder(base) then makefolder(base) end
+            if not isfolder(self.Folder) then makefolder(self.Folder) end
             local themes = self:_getThemesFolder()
             if not isfolder(themes) then makefolder(themes) end
         end
     end)
-    return self:_getThemesFolder()
 end
+
+local SyncKeys = { "Background", "TabBackground", "Accent", "Border", "FontPrimary", "FontSecondary" }
 
 function ThemeManager:_syncColorPickers()
     local lib = self.Library
     if not lib then return end
-    local flags = lib.Flags or {}
-    local colorMap = {
-        { keys = {"Background", "TitleBar", "GroupboxBg"} },
-        { keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
-        { keys = {"Accent", "ToggleOn", "SliderFill"} },
-        { keys = {"Border", "ElementBorder"} },
-        { keys = {"FontPrimary"} },
-        { keys = {"FontSecondary"} },
-    }
-    for i, entry in ipairs(colorMap) do
+    local flags = lib.Flags
+    for i, key in ipairs(SyncKeys) do
         local cpFlag = "ThemeColor_" .. i
-        local firstKey = entry.keys[1]
-        if flags[cpFlag] and lib.Theme[firstKey] then
-            pcall(function() flags[cpFlag]:SetValue(lib.Theme[firstKey]) end)
+        local obj = flags[cpFlag]
+        if obj and lib.Theme[key] then
+            pcall(obj.SetValue, obj, lib.Theme[key])
         end
     end
 end
@@ -313,7 +303,8 @@ function ThemeManager:SaveCustomTheme(name)
     if not name or name == "" then return false end
     local lib = self.Library
     if not lib then return false end
-    local folder = self:_ensureFolders()
+    self:_ensureFolders()
+    local folder = self:_getThemesFolder()
     local data = {}
     for key, color in pairs(lib.Theme) do
         data[key] = {math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)}
