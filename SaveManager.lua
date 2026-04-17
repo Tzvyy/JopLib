@@ -253,13 +253,6 @@ function SaveManager:BuildConfigSection(tab)
         Default = configs[1],
     })
 
-    lib.Flags.ConfigList:OnChanged(function()
-        local val = lib.Flags.ConfigList.Value
-        if val and lib.Flags.ConfigName then
-            lib.Flags.ConfigName:SetValue(val)
-        end
-    end)
-
     -- Helper to create side-by-side button rows
     local Create = function(cls, props, children)
         local inst = Instance.new(cls)
@@ -364,9 +357,9 @@ function SaveManager:BuildConfigSection(tab)
     end)
 
     makeSideBySideBtn("Load config", 1, row1, function()
-        local name = lib.Flags.ConfigName and lib.Flags.ConfigName.Value or ""
+        local name = lib.Flags.ConfigList and lib.Flags.ConfigList.Value or ""
         if name == "" then
-            if lib.Notify then lib:Notify("Enter a config name first!", 2) end
+            if lib.Notify then lib:Notify("Select a config first", 2) end
             return
         end
         local ok = self:Load(name)

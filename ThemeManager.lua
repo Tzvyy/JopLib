@@ -348,8 +348,11 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Theme",
     })
 
+    local _lastThemeSelection = nil
+
     lib.Flags.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
+        _lastThemeSelection = val
     end)
 
     -- Color pickers
@@ -397,10 +400,8 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     })
 
     lib.Flags.CustomThemeList:OnChanged(function(val)
-        -- Just update the name input to match selection; user clicks "Load theme" to apply
-        if not val or val == "" then return end
-        if lib.Flags.CustomThemeName then
-            lib.Flags.CustomThemeName:SetValue(val)
+        if val and val ~= "" then
+            _lastThemeSelection = val
         end
     end)
 
@@ -578,7 +579,11 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     right:AddButton({
         Text = "Set as autoload",
         Func = function()
-            local themeName = ThemeManager._currentThemeName or "Default"
+            local themeName = _lastThemeSelection or ThemeManager._currentThemeName or "Default"
+            if themeName == "" then
+                if lib.Notify then lib:Notify("Select a theme first", 2) end
+                return
+            end
             ThemeManager:_saveAutoloadSilent(themeName)
             if lib.Notify then lib:Notify(string.format("Set %q to auto load", themeName)) end
             if ThemeManager.AutoloadLabel then
