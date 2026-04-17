@@ -1360,8 +1360,8 @@ function Elements:Setup(Library)
                     kpObj._isActive = true
                     if cbCallback then lib:SafeCallback(cbCallback, true) end
                 end
-                if syncToggle and getgenv().Toggles[syncToggle] then
-                    getgenv().Toggles[syncToggle]:SetValue(kpObj:GetState())
+                if syncToggle and lib.Flags[syncToggle] then
+                    lib.Flags[syncToggle]:SetValue(kpObj:GetState())
                 end
             end
         end)
@@ -1373,8 +1373,8 @@ function Elements:Setup(Library)
             if keyName == kpObj.Value and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
                 if cbCallback then lib:SafeCallback(cbCallback, false) end
-                if syncToggle and getgenv().Toggles[syncToggle] then
-                    getgenv().Toggles[syncToggle]:SetValue(false)
+                if syncToggle and lib.Flags[syncToggle] then
+                    lib.Flags[syncToggle]:SetValue(false)
                 end
             end
         end)
