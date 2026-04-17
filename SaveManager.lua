@@ -229,10 +229,10 @@ function SaveManager:BuildConfigSection(tab)
         Default = configs[1],
     })
 
-    getgenv().Options.ConfigList:OnChanged(function()
-        local val = getgenv().Options.ConfigList.Value
-        if val and getgenv().Options.ConfigName then
-            getgenv().Options.ConfigName:SetValue(val)
+    lib.Flags.ConfigList:OnChanged(function()
+        local val = lib.Flags.ConfigList.Value
+        if val and lib.Flags.ConfigName then
+            lib.Flags.ConfigName:SetValue(val)
         end
     end)
 
@@ -316,7 +316,7 @@ function SaveManager:BuildConfigSection(tab)
     local row1 = makeButtonRow("SaveLoadRow", right)
 
     makeSideBySideBtn("Save config", 0, row1, function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+        local name = lib.Flags.ConfigName and lib.Flags.ConfigName.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Enter a config name first!", 2) end
             return
@@ -333,14 +333,14 @@ function SaveManager:BuildConfigSection(tab)
         if ok then
             if lib.Notify then lib:Notify("Config saved: " .. name, 2) end
             local newConfigs = self:GetConfigs()
-            if getgenv().Options.ConfigList then
-                getgenv().Options.ConfigList:SetValues(newConfigs)
+            if lib.Flags.ConfigList then
+                lib.Flags.ConfigList:SetValues(newConfigs)
             end
         end
     end)
 
     makeSideBySideBtn("Load config", 1, row1, function()
-        local name = getgenv().Options.ConfigName and getgenv().Options.ConfigName.Value or ""
+        local name = lib.Flags.ConfigName and lib.Flags.ConfigName.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Enter a config name first!", 2) end
             return
@@ -354,7 +354,7 @@ function SaveManager:BuildConfigSection(tab)
     local row2 = makeButtonRow("OverwriteDeleteRow", right)
 
     makeSideBySideBtn("Overwrite config", 0, row2, function()
-        local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+        local name = lib.Flags.ConfigList and lib.Flags.ConfigList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a config first", 2) end
             return
@@ -364,7 +364,7 @@ function SaveManager:BuildConfigSection(tab)
     end)
 
     makeSideBySideBtn("Delete config", 1, row2, function()
-        local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+        local name = lib.Flags.ConfigList and lib.Flags.ConfigList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a config first", 2) end
             return
@@ -372,10 +372,10 @@ function SaveManager:BuildConfigSection(tab)
         self:Delete(name)
         if lib.Notify then lib:Notify("Config deleted: " .. name, 2) end
         local newConfigs = self:GetConfigs()
-        if getgenv().Options.ConfigList then
-            getgenv().Options.ConfigList:SetValues(newConfigs)
+        if lib.Flags.ConfigList then
+            lib.Flags.ConfigList:SetValues(newConfigs)
             if #newConfigs == 0 then
-                getgenv().Options.ConfigList:SetValue(nil)
+                lib.Flags.ConfigList:SetValue(nil)
             end
         end
     end, true)
@@ -385,10 +385,10 @@ function SaveManager:BuildConfigSection(tab)
         Text = "Refresh list",
         Func = function()
             local newConfigs = self:GetConfigs()
-            if getgenv().Options.ConfigList then
-                getgenv().Options.ConfigList:SetValues(newConfigs)
+            if lib.Flags.ConfigList then
+                lib.Flags.ConfigList:SetValues(newConfigs)
                 if #newConfigs == 0 then
-                    getgenv().Options.ConfigList:SetValue(nil)
+                    lib.Flags.ConfigList:SetValue(nil)
                 end
             end
             if lib.Notify then lib:Notify("Found " .. #newConfigs .. " configs", 2) end
@@ -399,7 +399,7 @@ function SaveManager:BuildConfigSection(tab)
     right:AddButton({
         Text = "Set as autoload",
         Func = function()
-            local name = getgenv().Options.ConfigList and getgenv().Options.ConfigList.Value or ""
+            local name = lib.Flags.ConfigList and lib.Flags.ConfigList.Value or ""
             if name == "" then
                 if lib.Notify then lib:Notify("Select a config first", 2) end
                 return

@@ -12,6 +12,10 @@ Elements:Setup(Library)
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 
+-- Use instance-scoped tables (safe with multiple scripts)
+local Toggles = Library.Toggles
+local Options = Library.Options
+
 local Window = Library:CreateWindow({
     Title = "JopLib Example",
     Center = true,
@@ -356,24 +360,6 @@ MenuGroup:AddLabel(""):AddKeyPicker("MenuKeybind", {
 })
 
 Library.ToggleKeybind = Options.MenuKeybind
-
--- Show Watermark toggle (unique flag per script instance to avoid collisions)
-local ShowWatermarkToggle = MenuGroup:AddToggle("ShowWatermark_" .. tostring(math.random(10000, 99999)), {
-    Text = "Show Watermark",
-    Default = false,
-})
-ShowWatermarkToggle:OnChanged(function(val)
-    Library:SetWatermarkVisibility(val)
-end)
-
--- Show Keybinds toggle (unique flag per script instance to avoid collisions)
-local ShowKeybindsToggle = MenuGroup:AddToggle("ShowKeybinds_" .. tostring(math.random(10000, 99999)), {
-    Text = "Show Keybinds",
-    Default = false,
-})
-ShowKeybindsToggle:OnChanged(function(val)
-    if Library._keybindFrame then Library._keybindFrame.Visible = val end
-end)
 
 -- ============================================================
 -- THEME + CONFIG (addons)

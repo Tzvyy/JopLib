@@ -25,6 +25,7 @@ end
 
 getgenv().Toggles = getgenv().Toggles or {}
 getgenv().Options = getgenv().Options or {}
+getgenv()._JopLibInstances = getgenv()._JopLibInstances or {}
 
 -- ============================================================
 -- FONT CONFIG (single place to change)
@@ -143,6 +144,58 @@ Library._unloadCallbacks = {}
 Library._openPopup = nil
 Library.NotifyOnError = true
 Library.RiskColor = Color3.fromRGB(255, 50, 50)
+Library._instanceId = tostring(math.random(100000, 999999))
+
+-- Instance-scoped proxy tables for Toggles and Options
+-- These ensure each Library instance only sees its own flags,
+-- preventing collisions when multiple scripts run simultaneously.
+Library.Toggles = setmetatable({}, {
+    __index = function(_, key)
+        local obj = Library.Flags[key]
+        if obj and obj.Type == "Toggle" then return obj end
+        return nil
+    end,
+    __newindex = function(_, key, value)
+        rawset(getgenv().Toggles, key, value)
+    end,
+    __iter = function(self)
+        local flags = Library.Flags
+        local key = nil
+        return function()
+            while true do
+                key = next(flags, key)
+                if key == nil then return nil end
+                if flags[key] and flags[key].Type == "Toggle" then
+                    return key, flags[key]
+                end
+            end
+        end
+    end,
+})
+
+Library.Options = setmetatable({}, {
+    __index = function(_, key)
+        local obj = Library.Flags[key]
+        if obj and obj.Type ~= "Toggle" then return obj end
+        return nil
+    end,
+    __newindex = function(_, key, value)
+        rawset(getgenv().Options, key, value)
+    end,
+    __iter = function(self)
+        local flags = Library.Flags
+        local key = nil
+        return function()
+            while true do
+                key = next(flags, key)
+                if key == nil then return nil end
+                if flags[key] and flags[key].Type ~= "Toggle" then
+                    return key, flags[key]
+                end
+            end
+        end
+    end,
+})
 
 -- Registry-based theme system
 Library.Registry = {}

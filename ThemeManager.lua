@@ -274,7 +274,7 @@ end
 function ThemeManager:_syncColorPickers()
     local lib = self.Library
     if not lib then return end
-    local opts = getgenv().Options or {}
+    local flags = lib.Flags or {}
     local colorMap = {
         { keys = {"Background", "TitleBar", "GroupboxBg"} },
         { keys = {"TabBackground", "TabActive", "TabInactive", "ElementBg"} },
@@ -286,8 +286,8 @@ function ThemeManager:_syncColorPickers()
     for i, entry in ipairs(colorMap) do
         local cpFlag = "ThemeColor_" .. i
         local firstKey = entry.keys[1]
-        if opts[cpFlag] and lib.Theme[firstKey] then
-            pcall(function() opts[cpFlag]:SetValue(lib.Theme[firstKey]) end)
+        if flags[cpFlag] and lib.Theme[firstKey] then
+            pcall(function() flags[cpFlag]:SetValue(lib.Theme[firstKey]) end)
         end
     end
 end
@@ -362,7 +362,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Theme",
     })
 
-    getgenv().Options.ThemeSelector:OnChanged(function(val)
+    lib.Flags.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
     end)
 
@@ -384,7 +384,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             Title = entry.label,
         })
 
-        getgenv().Options[cpFlag]:OnChanged(function(color)
+        lib.Flags[cpFlag]:OnChanged(function(color)
             for _, key in ipairs(entry.keys) do
                 lib.Theme[key] = color
             end
@@ -410,11 +410,11 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Custom Themes",
     })
 
-    getgenv().Options.CustomThemeList:OnChanged(function(val)
+    lib.Flags.CustomThemeList:OnChanged(function(val)
         -- Just update the name input to match selection; user clicks "Load theme" to apply
         if not val or val == "" then return end
-        if getgenv().Options.CustomThemeName then
-            getgenv().Options.CustomThemeName:SetValue(val)
+        if lib.Flags.CustomThemeName then
+            lib.Flags.CustomThemeName:SetValue(val)
         end
     end)
 
@@ -498,7 +498,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     local row1 = makeButtonRow("SaveLoadRow", right)
 
     makeSideBySideBtn("Save theme", 0, row1, function()
-        local name = getgenv().Options.CustomThemeName and getgenv().Options.CustomThemeName.Value or ""
+        local name = lib.Flags.CustomThemeName and lib.Flags.CustomThemeName.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Enter a theme name first", 2) end
             return
@@ -514,21 +514,21 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         if ThemeManager:SaveCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme saved: " .. name, 2) end
             local newList = ThemeManager:_listCustomThemes()
-            if getgenv().Options.CustomThemeList then
-                getgenv().Options.CustomThemeList:SetValues(newList)
+            if lib.Flags.CustomThemeList then
+                lib.Flags.CustomThemeList:SetValues(newList)
             end
         end
     end)
 
     makeSideBySideBtn("Load theme", 1, row1, function()
-        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        local name = lib.Flags.CustomThemeList and lib.Flags.CustomThemeList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a custom theme first", 2) end
             return
         end
         if ThemeManager:LoadCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme loaded: " .. name, 2) end
-            local autoToggle = getgenv().Toggles.AutoLoadTheme
+            local autoToggle = lib.Flags.AutoLoadTheme
             if autoToggle then
                 autoToggle:SetValueText(name)
                 if autoToggle.Value then
@@ -542,7 +542,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     local row2 = makeButtonRow("OverwriteDeleteRow", right)
 
     makeSideBySideBtn("Overwrite theme", 0, row2, function()
-        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        local name = lib.Flags.CustomThemeList and lib.Flags.CustomThemeList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a custom theme first", 2) end
             return
@@ -553,7 +553,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     end)
 
     makeSideBySideBtn("Delete theme", 1, row2, function()
-        local name = getgenv().Options.CustomThemeList and getgenv().Options.CustomThemeList.Value or ""
+        local name = lib.Flags.CustomThemeList and lib.Flags.CustomThemeList.Value or ""
         if name == "" then
             if lib.Notify then lib:Notify("Select a custom theme first", 2) end
             return
@@ -565,10 +565,10 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end)
         if lib.Notify then lib:Notify("Theme deleted: " .. name, 2) end
         local newList = ThemeManager:_listCustomThemes()
-        if getgenv().Options.CustomThemeList then
-            getgenv().Options.CustomThemeList:SetValues(newList)
+        if lib.Flags.CustomThemeList then
+            lib.Flags.CustomThemeList:SetValues(newList)
             if #newList == 0 then
-                getgenv().Options.CustomThemeList:SetValue(nil)
+                lib.Flags.CustomThemeList:SetValue(nil)
             end
         end
     end, true)
@@ -578,10 +578,10 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Refresh list",
         Func = function()
             local newList = ThemeManager:_listCustomThemes()
-            if getgenv().Options.CustomThemeList then
-                getgenv().Options.CustomThemeList:SetValues(newList)
+            if lib.Flags.CustomThemeList then
+                lib.Flags.CustomThemeList:SetValues(newList)
                 if #newList == 0 then
-                    getgenv().Options.CustomThemeList:SetValue(nil)
+                    lib.Flags.CustomThemeList:SetValue(nil)
                 end
             end
             if lib.Notify then lib:Notify("Custom themes refreshed", 2) end
@@ -621,8 +621,8 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Default = false,
     })
 
-    getgenv().Toggles.ShowWatermark:OnChanged(function()
-        lib:SetWatermarkVisibility(getgenv().Toggles.ShowWatermark.Value)
+    lib.Flags.ShowWatermark:OnChanged(function()
+        lib:SetWatermarkVisibility(lib.Flags.ShowWatermark.Value)
     end)
 
     menu:AddToggle("ShowKeybindFrame", {
@@ -630,9 +630,9 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Default = false,
     })
 
-    getgenv().Toggles.ShowKeybindFrame:OnChanged(function()
+    lib.Flags.ShowKeybindFrame:OnChanged(function()
         if lib.KeybindFrame then
-            lib.KeybindFrame.Visible = getgenv().Toggles.ShowKeybindFrame.Value
+            lib.KeybindFrame.Visible = lib.Flags.ShowKeybindFrame.Value
         end
     end)
 
@@ -642,8 +642,8 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Text = "Keybind List Filter",
     })
 
-    getgenv().Options.KeybindListFilter:OnChanged(function()
-        lib._keybindFilterActive = (getgenv().Options.KeybindListFilter.Value == "Active Only")
+    lib.Flags.KeybindListFilter:OnChanged(function()
+        lib._keybindFilterActive = (lib.Flags.KeybindListFilter.Value == "Active Only")
     end)
 
     menu:AddDivider()
@@ -654,8 +654,8 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         Default = false,
     })
 
-    getgenv().Toggles.GUILogs:OnChanged(function()
-        lib.DebugLogs = getgenv().Toggles.GUILogs.Value
+    lib.Flags.GUILogs:OnChanged(function()
+        lib.DebugLogs = lib.Flags.GUILogs.Value
     end)
 end
 
@@ -671,7 +671,7 @@ function ThemeManager:ApplyToGroupbox(groupbox)
         Text = "Theme",
     })
 
-    getgenv().Options.ThemeSelector:OnChanged(function(val)
+    lib.Flags.ThemeSelector:OnChanged(function(val)
         ThemeManager:SetTheme(val)
     end)
 end
@@ -755,8 +755,8 @@ function ThemeManager:LoadAutoloadTheme()
         -- Try built-in theme first
         if self.BuiltInThemes[content] then
             self:SetTheme(content)
-            if getgenv().Options.ThemeSelector then
-                getgenv().Options.ThemeSelector:SetValue(content)
+            if lib and lib.Flags.ThemeSelector then
+                lib.Flags.ThemeSelector:SetValue(content)
             end
         else
             -- Try custom theme
