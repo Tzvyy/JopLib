@@ -46,6 +46,51 @@ local function GetKeyName(input)
     return nil
 end
 
+local function GetKeyNameExtended(input)
+    local name = GetKeyName(input)
+    if not name then
+        if input.UserInputType == Enum.UserInputType.MouseWheel then
+            name = input.Position.Z > 0 and "ScrollUp" or "ScrollDown"
+        end
+    end
+    return name
+end
+
+local function GetModifierPrefix()
+    local mods = {}
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) then
+        mods[#mods + 1] = "Ctrl"
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift) then
+        mods[#mods + 1] = "Shift"
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt) then
+        mods[#mods + 1] = "Alt"
+    end
+    return mods
+end
+
+local ModifierKeys = {
+    LeftControl = true, RightControl = true,
+    LeftShift = true, RightShift = true,
+    LeftAlt = true, RightAlt = true,
+}
+
+local function MatchesKeybind(input, bindValue)
+    if not bindValue or bindValue == "None" then return false end
+    local keyName = GetKeyNameExtended(input)
+    if not keyName then return false end
+    -- Simple bind (no modifiers)
+    if not bindValue:find("+") then
+        return keyName == bindValue
+    end
+    -- Compound bind: "Ctrl+X" etc
+    local full = table.concat(GetModifierPrefix(), "+")
+    if full ~= "" then full = full .. "+" end
+    full = full .. keyName
+    return full == bindValue
+end
+
 local Elements = {}
 
 function Elements:Setup(Library)
@@ -179,6 +224,10 @@ function Elements:Setup(Library)
             end
         end
 
+        function toggleObj:SetText(newText)
+            if self.TextLabel then self.TextLabel.Text = newText end
+        end
+
         local btn = Create("TextButton", {
             Name = "ClickArea",
             Size = UDim2.new(0, 16, 0, 16),
@@ -268,6 +317,7 @@ function Elements:Setup(Library)
         local max = options.Max or 100
         local default = options.Default or min
         local rounding = options.Rounding or 0
+        local increment = options.Increment or options.Step
         local suffix = options.Suffix or ""
         local text = options.Text or flag
         local compact = options.Compact or false
@@ -275,6 +325,9 @@ function Elements:Setup(Library)
         local callback = options.Callback
 
         local function round(val)
+            if increment then
+                val = math.floor(val / increment + 0.5) * increment
+            end
             if rounding == 0 then return math.floor(val + 0.5) end
             local mult = 10 ^ rounding
             return math.floor(val * mult + 0.5) / mult
@@ -805,12 +858,16 @@ function Elements:Setup(Library)
 
         local popupObj = { Close = closeDrop }
 
+        local searchThreshold = options.SearchThreshold or 6
+
         local function buildItems()
             if dropList then dropList:Destroy() dropList = nil end
 
             local absPos = dropBtn.AbsolutePosition
             local absSize = dropBtn.AbsoluteSize
-            local listHeight = math.min(#values, maxVisible) * itemHeight
+            local showSearch = #values > searchThreshold
+            local searchHeight = showSearch and 24 or 0
+            local listHeight = math.min(#values, maxVisible) * itemHeight + searchHeight
 
             dropList = Create("ScrollingFrame", {
                 Name = "DropList_" .. flag,
@@ -837,6 +894,30 @@ function Elements:Setup(Library)
             local dlStroke = dropList:FindFirstChildOfClass("UIStroke")
             if dlStroke then lib:AddToRegistry(dlStroke, { Color = "ElementBorder" }) end
 
+            local searchBox
+            if showSearch then
+                searchBox = Create("TextBox", {
+                    Name = "SearchBox",
+                    Size = UDim2.new(1, 0, 0, 24),
+                    BackgroundColor3 = lib.Theme.ElementBg,
+                    BorderSizePixel = 0,
+                    Text = "",
+                    PlaceholderText = "Search...",
+                    PlaceholderColor3 = Color3.fromRGB(100, 100, 100),
+                    TextColor3 = lib.Theme.FontPrimary,
+                    FontFace = lib.FontRegular,
+                    TextSize = 13,
+                    ClearTextOnFocus = false,
+                    LayoutOrder = -1,
+                    ZIndex = 101,
+                    Parent = dropList,
+                }, {
+                    Create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
+                })
+            end
+
+            local itemButtons = {}
+
             for i, val in ipairs(values) do
                 local isSelected = multi and dropObj.Value[val] or (dropObj.Value == val)
                 local item = Create("TextButton", {
@@ -853,6 +934,7 @@ function Elements:Setup(Library)
                     ZIndex = 101,
                     Parent = dropList,
                 })
+                itemButtons[#itemButtons + 1] = { btn = item, val = val }
 
                 item.MouseButton1Click:Connect(function()
                     if multi then
@@ -868,16 +950,11 @@ function Elements:Setup(Library)
                         else
                             dropObj:SetValue(val)
                         end
-                        -- Update all items highlight without closing
-                        if dropList then
-                            for _, child in ipairs(dropList:GetChildren()) do
-                                if child:IsA("TextButton") then
-                                    local isSel = (child.Name == "Item_" .. tostring(dropObj.Value))
-                                    child.BackgroundColor3 = isSel and lib.Theme.Accent or lib.Theme.ElementBg
-                                    child.BackgroundTransparency = isSel and 0.7 or 0
-                                    child.TextColor3 = isSel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
-                                end
-                            end
+                        for _, entry in ipairs(itemButtons) do
+                            local isSel = (entry.val == dropObj.Value)
+                            entry.btn.BackgroundColor3 = isSel and lib.Theme.Accent or lib.Theme.ElementBg
+                            entry.btn.BackgroundTransparency = isSel and 0.7 or 0
+                            entry.btn.TextColor3 = isSel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
                         end
                     end
                 end)
@@ -898,6 +975,21 @@ function Elements:Setup(Library)
                     item.BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg
                     item.BackgroundTransparency = sel and 0.7 or 0
                 end)
+            end
+
+            if searchBox then
+                searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                    local query = searchBox.Text:lower()
+                    local visCount = 0
+                    for _, entry in ipairs(itemButtons) do
+                        local show = query == "" or entry.val:lower():find(query, 1, true)
+                        entry.btn.Visible = show ~= nil
+                        if entry.btn.Visible then visCount = visCount + 1 end
+                    end
+                    local newH = math.min(visCount, maxVisible) * itemHeight + searchHeight
+                    dropList.Size = UDim2.new(0, absSize.X, 0, newH)
+                end)
+                task.defer(function() searchBox:CaptureFocus() end)
             end
         end
 
@@ -1331,26 +1423,46 @@ function Elements:Setup(Library)
             lib._openPopupTrigger = keyBtn
         end)
 
-        -- Key listening
+        -- Key listening (supports modifiers and scroll wheel)
         local inputConn = UserInputService.InputBegan:Connect(function(input, processed)
             if not listening then return end
             if processed then return end
-            local keyName = GetKeyName(input)
-            if keyName then
-                if keyName == "Escape" or keyName == "Backspace" then keyName = "None" end
+            local keyName = GetKeyNameExtended(input)
+            if not keyName then return end
+            if ModifierKeys[keyName] then return end
+            if keyName == "Escape" or keyName == "Backspace" then
                 listening = false
-                kpObj:SetValue({keyName, kpObj.Mode})
+                kpObj:SetValue({"None", kpObj.Mode})
+                keyBtn.TextColor3 = lib.Theme.FontSecondary
+                return
+            end
+            local mods = GetModifierPrefix()
+            local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
+            listening = false
+            kpObj:SetValue({fullName, kpObj.Mode})
+            keyBtn.TextColor3 = lib.Theme.FontSecondary
+        end)
+        table.insert(lib.Connections, inputConn)
+
+        -- Scroll wheel listening
+        local scrollConn = UserInputService.InputChanged:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+            if listening then
+                local keyName = input.Position.Z > 0 and "ScrollUp" or "ScrollDown"
+                local mods = GetModifierPrefix()
+                local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
+                listening = false
+                kpObj:SetValue({fullName, kpObj.Mode})
                 keyBtn.TextColor3 = lib.Theme.FontSecondary
             end
         end)
-        table.insert(lib.Connections, inputConn)
+        table.insert(lib.Connections, scrollConn)
 
         -- Hold/Toggle/Always state
         local holdConn = UserInputService.InputBegan:Connect(function(input, processed)
             if processed or listening then return end
             if kpObj.Value == "None" then return end
-            local keyName = GetKeyName(input)
-            if keyName == kpObj.Value then
+            if MatchesKeybind(input, kpObj.Value) then
                 if kpObj.Mode == "Toggle" then
                     kpObj._isActive = not kpObj._isActive
                     for _, fn in ipairs(kpObj._clickCallbacks) do lib:SafeCallback(fn, kpObj._isActive) end
@@ -1368,8 +1480,7 @@ function Elements:Setup(Library)
 
         local holdEndConn = UserInputService.InputEnded:Connect(function(input)
             if kpObj.Value == "None" then return end
-            local keyName = GetKeyName(input)
-            if keyName == kpObj.Value and kpObj.Mode == "Hold" then
+            if MatchesKeybind(input, kpObj.Value) and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
                 if cbCallback then lib:SafeCallback(cbCallback, false) end
                 if syncToggle and lib.Flags[syncToggle] then

@@ -11,6 +11,8 @@ SaveManager.Folder = "JopLib/configs"
 SaveManager.BaseFolder = "JopLib"
 SaveManager.IgnoreIndexes = {}
 SaveManager.IgnoreTheme = false
+SaveManager.ConfigVersion = 1
+SaveManager._migrations = {}
 
 -- ============================================================
 -- METHODS
@@ -63,8 +65,32 @@ end
 -- SERIALIZE / DESERIALIZE
 -- ============================================================
 
+function SaveManager:SetConfigVersion(version)
+    self.ConfigVersion = version
+end
+
+function SaveManager:AddMigration(fromVersion, migrateFn)
+    self._migrations[fromVersion] = migrateFn
+end
+
+function SaveManager:_migrateData(data)
+    local version = data._version or 0
+    while version < self.ConfigVersion do
+        local migrateFn = self._migrations[version]
+        if migrateFn then
+            data = migrateFn(data) or data
+            version = (data._version or version) + 1
+            data._version = version
+        else
+            version = version + 1
+            data._version = version
+        end
+    end
+    return data
+end
+
 function SaveManager:_serialize()
-    local data = {}
+    local data = { _version = self.ConfigVersion }
     local flags = self.Library and self.Library.Flags or {}
 
     for flag, obj in pairs(flags) do
@@ -103,9 +129,11 @@ function SaveManager:_serialize()
 end
 
 function SaveManager:_deserialize(data)
+    data = self:_migrateData(data)
     local flags = self.Library and self.Library.Flags or {}
 
     for flag, entry in pairs(data) do
+        if flag == "_version" then continue end
         if self.IgnoreIndexes[flag] then continue end
         local obj = flags[flag]
         if not obj then continue end

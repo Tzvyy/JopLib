@@ -353,6 +353,7 @@ end
 -- ============================================================
 
 local NotificationHolder = nil
+local MAX_NOTIFICATIONS = 5
 
 function Library:Notify(text, duration)
     duration = duration or 3
@@ -387,7 +388,20 @@ function Library:Notify(text, duration)
 
     local holder = NotificationHolder:FindFirstChild("Holder")
 
+    -- Enforce max notification count (remove oldest)
+    local existing = {}
+    for _, child in ipairs(holder:GetChildren()) do
+        if child:IsA("Frame") and child.Name == "Notification" then
+            existing[#existing + 1] = child
+        end
+    end
+    while #existing >= MAX_NOTIFICATIONS do
+        existing[1]:Destroy()
+        table.remove(existing, 1)
+    end
+
     local notif = Create("Frame", {
+        Name = "Notification",
         Size = UDim2.new(1, 0, 0, 0),
         BackgroundColor3 = self.Theme.Background,
         BorderSizePixel = 0,
@@ -396,15 +410,24 @@ function Library:Notify(text, duration)
     }, {
         Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("Frame", {
+            Name = "AccentBar",
+            Size = UDim2.new(0, 3, 1, -8),
+            Position = UDim2.new(0, 4, 0, 4),
+            BackgroundColor3 = self.Theme.Accent,
+            BorderSizePixel = 0,
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+        }),
         Create("TextLabel", {
             Name = "Text",
-            Size = UDim2.new(1, -16, 1, -12),
-            Position = UDim2.new(0, 8, 0, 8),
+            Size = UDim2.new(1, -22, 1, -12),
+            Position = UDim2.new(0, 14, 0, 6),
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = self.Theme.FontPrimary,
             FontFace = self.FontRegular,
-            TextSize = 16,
+            TextSize = 14,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
@@ -414,18 +437,24 @@ function Library:Notify(text, duration)
     self:AddToRegistry(notif, { BackgroundColor3 = "Background" })
     local notifStroke = notif:FindFirstChildOfClass("UIStroke")
     if notifStroke then self:AddToRegistry(notifStroke, { Color = "Border" }) end
+    local accentBar = notif:FindFirstChild("AccentBar")
+    if accentBar then self:AddToRegistry(accentBar, { BackgroundColor3 = "Accent" }) end
     local textLabel = notif:FindFirstChild("Text")
     if textLabel then self:AddToRegistry(textLabel, { TextColor3 = "FontPrimary" }) end
-    local textHeight = textLabel.TextBounds.Y + 16
-    textHeight = math.max(textHeight, 30)
 
-    Tween(notif, {Size = UDim2.new(1, 0, 0, textHeight)}, 0.25):Play()
+    -- Wait a frame for TextBounds to compute
+    task.defer(function()
+        local textHeight = textLabel.TextBounds.Y + 16
+        textHeight = math.max(textHeight, 30)
+        Tween(notif, {Size = UDim2.new(1, 0, 0, textHeight)}, 0.25):Play()
 
-    task.delay(duration, function()
-        local t = Tween(notif, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
-        t:Play()
-        t.Completed:Wait()
-        notif:Destroy()
+        task.delay(duration, function()
+            if not notif.Parent then return end
+            local t = Tween(notif, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+            t:Play()
+            t.Completed:Wait()
+            if notif.Parent then notif:Destroy() end
+        end)
     end)
 end
 
@@ -876,9 +905,59 @@ function Library:CreateWindow(options)
     -- TAB
     -- ============================================================
 
-    function Window:AddTab(tabName)
+    function Window:AddTab(tabName, tabOptions)
+        tabOptions = type(tabName) == "table" and tabName or (tabOptions or {})
+        if type(tabName) == "table" then tabName = tabOptions.Name or "Tab" end
+
+        local tabIcon = tabOptions.Icon
         Window._tabOrder = Window._tabOrder + 1
         local order = Window._tabOrder
+
+        local tabChildren = {
+            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 10),
+                PaddingRight = UDim.new(0, 10),
+            }),
+        }
+
+        if tabIcon then
+            table.insert(tabChildren, Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 5),
+            }))
+            table.insert(tabChildren, Create("ImageLabel", {
+                Name = "Icon",
+                Size = UDim2.new(0, 14, 0, 14),
+                BackgroundTransparency = 1,
+                Image = tabIcon,
+                ImageColor3 = Library.Theme.FontSecondary,
+                LayoutOrder = 0,
+            }))
+            table.insert(tabChildren, Create("TextLabel", {
+                Name = "Label",
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Text = tabName,
+                TextColor3 = Library.Theme.FontSecondary,
+                FontFace = Library.FontSemiBold,
+                TextSize = 14,
+                LayoutOrder = 1,
+            }))
+        else
+            table.insert(tabChildren, Create("TextLabel", {
+                Name = "Label",
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundTransparency = 1,
+                Text = tabName,
+                TextColor3 = Library.Theme.FontSecondary,
+                FontFace = Library.FontSemiBold,
+                TextSize = 14,
+            }))
+        end
 
         local tabBtn = Create("TextButton", {
             Name = "Tab_" .. tabName,
@@ -889,22 +968,7 @@ function Library:CreateWindow(options)
             Text = "",
             LayoutOrder = order,
             Parent = tabBarScroll,
-        }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
-            Create("UIPadding", {
-                PaddingLeft = UDim.new(0, 10),
-                PaddingRight = UDim.new(0, 10),
-            }),
-            Create("TextLabel", {
-                Name = "Label",
-                Size = UDim2.new(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                Text = tabName,
-                TextColor3 = Library.Theme.FontSecondary,
-                FontFace = Library.FontSemiBold,
-                TextSize = 14,
-            }),
-        })
+        }, tabChildren)
 
         local tabPage = Create("Frame", {
             Name = "TabPage_" .. tabName,
@@ -917,6 +981,8 @@ function Library:CreateWindow(options)
         Library:AddToRegistry(tabBtn, { BackgroundColor3 = "TabInactive" })
         local tabLabel = tabBtn:FindFirstChild("Label")
         if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontSecondary" }) end
+        local tabIconImg = tabBtn:FindFirstChild("Icon")
+        if tabIconImg then Library:AddToRegistry(tabIconImg, { ImageColor3 = "FontSecondary" }) end
 
         local leftColumn = Create("ScrollingFrame", {
             Name = "LeftColumn",
@@ -1052,6 +1118,10 @@ function Library:CreateWindow(options)
             function Groupbox:_nextOrder()
                 self._elementOrder = self._elementOrder + 1
                 return self._elementOrder
+            end
+
+            function Groupbox:SetTitle(newTitle)
+                if groupTitle then groupTitle.Text = newTitle end
             end
 
             if Library._GroupboxMethods then
@@ -1256,6 +1326,8 @@ function Library:CreateWindow(options)
                 btn.BackgroundColor3 = Library.Theme.TabInactive
                 local label = btn:FindFirstChild("Label")
                 if label then label.TextColor3 = Library.Theme.FontSecondary end
+                local icon = btn:FindFirstChild("Icon")
+                if icon then icon.ImageColor3 = Library.Theme.FontSecondary end
             end
         end
 
@@ -1265,6 +1337,8 @@ function Library:CreateWindow(options)
             btn.BackgroundColor3 = Library.Theme.TabActive
             local label = btn:FindFirstChild("Label")
             if label then label.TextColor3 = Library.Theme.FontPrimary end
+            local icon = btn:FindFirstChild("Icon")
+            if icon then icon.ImageColor3 = Library.Theme.FontPrimary end
         end
 
         Window.ActiveTab = tab
@@ -1276,6 +1350,13 @@ function Library:CreateWindow(options)
         end
     end
     Window.SetTitle = Window.SetWindowTitle
+
+    function Window:Resize(width, height)
+        if mainFrame then
+            if width then mainFrame.Size = UDim2.new(0, width, 0, height or mainFrame.Size.Y.Offset) end
+            if height and not width then mainFrame.Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, height) end
+        end
+    end
 
     self.Window = Window
     return Window
