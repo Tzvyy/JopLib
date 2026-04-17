@@ -12,13 +12,17 @@ local Teams = game:GetService("Teams")
 
 local function Create(class, props, children)
     local inst = Instance.new(class)
-    for k, v in pairs(props or {}) do
-        if k ~= "Parent" then
-            inst[k] = v
+    if props then
+        for k, v in pairs(props) do
+            if k ~= "Parent" then
+                inst[k] = v
+            end
         end
     end
-    for _, child in ipairs(children or {}) do
-        child.Parent = inst
+    if children then
+        for _, child in ipairs(children) do
+            child.Parent = inst
+        end
     end
     if props and props.Parent then
         inst.Parent = props.Parent
@@ -56,18 +60,20 @@ local function GetKeyNameExtended(input)
     return name
 end
 
+local _modBuffer = {}
 local function GetModifierPrefix()
-    local mods = {}
+    local n = 0
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) then
-        mods[#mods + 1] = "Ctrl"
+        n = n + 1; _modBuffer[n] = "Ctrl"
     end
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift) then
-        mods[#mods + 1] = "Shift"
+        n = n + 1; _modBuffer[n] = "Shift"
     end
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt) then
-        mods[#mods + 1] = "Alt"
+        n = n + 1; _modBuffer[n] = "Alt"
     end
-    return mods
+    for i = n + 1, #_modBuffer do _modBuffer[i] = nil end
+    return _modBuffer
 end
 
 local ModifierKeys = {
@@ -81,14 +87,21 @@ local function MatchesKeybind(input, bindValue)
     local keyName = GetKeyNameExtended(input)
     if not keyName then return false end
     -- Simple bind (no modifiers)
-    if not bindValue:find("+") then
+    if not string.find(bindValue, "+", 1, true) then
         return keyName == bindValue
     end
-    -- Compound bind: "Ctrl+X" etc
-    local full = table.concat(GetModifierPrefix(), "+")
-    if full ~= "" then full = full .. "+" end
-    full = full .. keyName
-    return full == bindValue
+    -- Compound bind: check modifiers directly (zero allocations)
+    local hasCtrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+    local hasShift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+    local hasAlt = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
+    local wantCtrl = string.find(bindValue, "Ctrl+", 1, true) ~= nil
+    local wantShift = string.find(bindValue, "Shift+", 1, true) ~= nil
+    local wantAlt = string.find(bindValue, "Alt+", 1, true) ~= nil
+    if hasCtrl ~= wantCtrl or hasShift ~= wantShift or hasAlt ~= wantAlt then
+        return false
+    end
+    local expectedKey = bindValue:match("[^+]+$")
+    return keyName == expectedKey
 end
 
 local Elements = {}
@@ -939,7 +952,7 @@ function Elements:Setup(Library)
                     ZIndex = 101,
                     Parent = dropList,
                 })
-                itemButtons[#itemButtons + 1] = { btn = item, val = val }
+                itemButtons[#itemButtons + 1] = { btn = item, val = val, valLower = val:lower() }
 
                 item.MouseButton1Click:Connect(function()
                     if multi then
@@ -987,7 +1000,7 @@ function Elements:Setup(Library)
                     local query = searchBox.Text:lower()
                     local visCount = 0
                     for _, entry in ipairs(itemButtons) do
-                        local show = query == "" or entry.val:lower():find(query, 1, true)
+                        local show = query == "" or entry.valLower:find(query, 1, true)
                         entry.btn.Visible = show ~= nil
                         if entry.btn.Visible then visCount = visCount + 1 end
                     end

@@ -42,13 +42,17 @@ local Fonts = {
 
 local function Create(class, props, children)
     local inst = Instance.new(class)
-    for k, v in pairs(props or {}) do
-        if k ~= "Parent" then
-            inst[k] = v
+    if props then
+        for k, v in pairs(props) do
+            if k ~= "Parent" then
+                inst[k] = v
+            end
         end
     end
-    for _, child in ipairs(children or {}) do
-        child.Parent = inst
+    if children then
+        for _, child in ipairs(children) do
+            child.Parent = inst
+        end
     end
     if props and props.Parent then
         inst.Parent = props.Parent
@@ -261,14 +265,18 @@ function Library:RemoveFromRegistry(instance)
 end
 
 function Library:UpdateColorsUsingRegistry()
-    for _, obj in ipairs(self.Registry) do
-        if obj.Instance and obj.Instance.Parent then
+    local theme = self.Theme
+    local registry = self.Registry
+    for i = 1, #registry do
+        local obj = registry[i]
+        local inst = obj.Instance
+        if inst and inst.Parent then
             for prop, colorKey in pairs(obj.Properties) do
                 if type(colorKey) == "string" then
-                    local val = self.Theme[colorKey] or self[colorKey]
-                    if val then obj.Instance[prop] = val end
+                    local val = theme[colorKey] or self[colorKey]
+                    if val then inst[prop] = val end
                 elseif type(colorKey) == "function" then
-                    obj.Instance[prop] = colorKey()
+                    inst[prop] = colorKey()
                 end
             end
         end
@@ -1309,6 +1317,8 @@ function Library:CreateWindow(options)
         end)
 
         Tab._tabBtn = tabBtn
+        Tab._tabLabel = tabLabel
+        Tab._tabIcon = tabIconImg
         Window.Tabs[tabName] = Tab
 
         if Window.ActiveTab == nil then
@@ -1324,10 +1334,8 @@ function Library:CreateWindow(options)
             local btn = t._tabBtn
             if btn then
                 btn.BackgroundColor3 = Library.Theme.TabInactive
-                local label = btn:FindFirstChild("Label")
-                if label then label.TextColor3 = Library.Theme.FontSecondary end
-                local icon = btn:FindFirstChild("Icon")
-                if icon then icon.ImageColor3 = Library.Theme.FontSecondary end
+                if t._tabLabel then t._tabLabel.TextColor3 = Library.Theme.FontSecondary end
+                if t._tabIcon then t._tabIcon.ImageColor3 = Library.Theme.FontSecondary end
             end
         end
 
@@ -1335,10 +1343,8 @@ function Library:CreateWindow(options)
         local btn = tab._tabBtn
         if btn then
             btn.BackgroundColor3 = Library.Theme.TabActive
-            local label = btn:FindFirstChild("Label")
-            if label then label.TextColor3 = Library.Theme.FontPrimary end
-            local icon = btn:FindFirstChild("Icon")
-            if icon then icon.ImageColor3 = Library.Theme.FontPrimary end
+            if tab._tabLabel then tab._tabLabel.TextColor3 = Library.Theme.FontPrimary end
+            if tab._tabIcon then tab._tabIcon.ImageColor3 = Library.Theme.FontPrimary end
         end
 
         Window.ActiveTab = tab
