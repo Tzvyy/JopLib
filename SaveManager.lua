@@ -123,6 +123,25 @@ function SaveManager:_serialize()
         end
     end
 
+    -- Save frame positions if they exist
+    local lib = self.Library
+    if lib then
+        if lib.WatermarkPosition then
+            local pos = lib.WatermarkPosition
+            data._watermarkPos = {
+                X = { pos.X.Scale, pos.X.Offset },
+                Y = { pos.Y.Scale, pos.Y.Offset },
+            }
+        end
+        if lib.KeybindFramePosition then
+            local pos = lib.KeybindFramePosition
+            data._keybindPos = {
+                X = { pos.X.Scale, pos.X.Offset },
+                Y = { pos.Y.Scale, pos.Y.Offset },
+            }
+        end
+    end
+
     return data
 end
 
@@ -171,6 +190,27 @@ function SaveManager:_deserialize(data)
                     Color3.fromRGB(c.R or 255, c.G or 255, c.B or 255),
                     entry.transparency
                 )
+            end
+        end
+    end
+
+    -- Restore frame positions if saved (frames may not exist yet, store for later)
+    local lib = self.Library
+    if lib then
+        if data._watermarkPos then
+            local p = data._watermarkPos
+            lib.WatermarkPosition = UDim2.new(p.X[1], p.X[2], p.Y[1], p.Y[2])
+            -- Apply immediately if frame exists
+            if lib._watermarkFrame then
+                lib._watermarkFrame.Position = lib.WatermarkPosition
+            end
+        end
+        if data._keybindPos then
+            local p = data._keybindPos
+            lib.KeybindFramePosition = UDim2.new(p.X[1], p.X[2], p.Y[1], p.Y[2])
+            -- Apply immediately if frame exists
+            if lib._keybindFrame then
+                lib._keybindFrame.Position = lib.KeybindFramePosition
             end
         end
     end

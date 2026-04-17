@@ -78,7 +78,7 @@ local function Tween(inst, props, duration, style, dir)
     return TweenService:Create(inst, GetTweenInfo(duration, style, dir), props)
 end
 
-local function MakeDraggable(frame, handle)
+local function MakeDraggable(frame, handle, onPositionChanged)
     handle = handle or frame
     local dragging, dragStart, startPos
 
@@ -88,8 +88,11 @@ local function MakeDraggable(frame, handle)
             dragStart = input.Position
             startPos = frame.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
+                if input.UserInputState == Enum.InputInputState.End then
                     dragging = false
+                    if onPositionChanged then
+                        onPositionChanged(frame.Position)
+                    end
                 end
             end)
         end
@@ -102,6 +105,16 @@ local function MakeDraggable(frame, handle)
                 startPos.X.Scale, startPos.X.Offset + delta.X,
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
+        end
+    end)
+
+    -- Also track when drag ends via InputEnded
+    UserInputService.InputEnded:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            if onPositionChanged then
+                onPositionChanged(frame.Position)
+            end
         end
     end)
 end
@@ -487,7 +500,7 @@ function Library:CreateWatermark()
         Name = "WatermarkFrame",
         Size = UDim2.new(0, 0, 0, 28),
         AutomaticSize = Enum.AutomaticSize.X,
-        Position = UDim2.new(0, 10, 0, 10),
+        Position = self.WatermarkPosition or UDim2.new(0, 10, 0, 10),
         BackgroundColor3 = self.Theme.Background,
         BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
@@ -519,7 +532,10 @@ function Library:CreateWatermark()
     local wmText = frame:FindFirstChild("Text", true)
     if wmText then self:AddToRegistry(wmText, { TextColor3 = "FontSecondary" }, true) end
 
-    MakeDraggable(frame)
+    local function onPosChanged(pos)
+        self.WatermarkPosition = pos
+    end
+    MakeDraggable(frame, nil, onPosChanged)
     self._watermarkGui = gui
     self._watermarkFrame = frame
 end
@@ -553,7 +569,7 @@ function Library:CreateKeybindFrame()
     local frame = Create("Frame", {
         Name = "KeybindFrame",
         Size = UDim2.new(0, 220, 0, 30),
-        Position = UDim2.new(0, 10, 0, 300),
+        Position = self.KeybindFramePosition or UDim2.new(0, 10, 0, 300),
         BackgroundColor3 = self.Theme.Background,
         BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
@@ -596,7 +612,10 @@ function Library:CreateKeybindFrame()
     local kbTitle = frame:FindFirstChild("Title", true)
     if kbTitle then self:AddToRegistry(kbTitle, { TextColor3 = "FontSecondary" }, true) end
 
-    MakeDraggable(frame)
+    local function onPosChanged(pos)
+        self.KeybindFramePosition = pos
+    end
+    MakeDraggable(frame, nil, onPosChanged)
     self._keybindGui = gui
     self._keybindFrame = frame
     self._keybindList = listFrame
