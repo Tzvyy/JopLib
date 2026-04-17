@@ -886,12 +886,11 @@ function Elements:Setup(Library)
                     local sel = multi and dropObj.Value[val] or (dropObj.Value == val)
                     if not sel then
                         local bg = lib.Theme.ElementBg
-                        local hoverColor = Color3.fromRGB(
+                        item.BackgroundColor3 = Color3.fromRGB(
                             math.min(255, bg.R * 255 + 20),
                             math.min(255, bg.G * 255 + 20),
                             math.min(255, bg.B * 255 + 20)
                         )
-                        Tween(item, {BackgroundColor3 = hoverColor}, 0.08):Play()
                     end
                 end)
                 item.MouseLeave:Connect(function()
