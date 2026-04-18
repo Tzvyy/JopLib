@@ -941,13 +941,13 @@ function Library:CreateWindow(options)
     end)
     table.insert(Library.Connections, toggleConn)
 
-    -- Keybind frame update (throttled to 5/sec)
+    -- Keybind frame update (throttled to 20/sec)
     self:CreateKeybindFrame()
     local kbTimer = 0
     local kbConn = RunService.Heartbeat:Connect(function(dt)
         if Library.Unloaded then return end
         kbTimer = kbTimer + dt
-        if kbTimer >= 0.2 then
+        if kbTimer >= 0.05 then
             kbTimer = 0
             Library:UpdateKeybindFrame()
         end
