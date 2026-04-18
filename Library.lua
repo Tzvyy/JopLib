@@ -941,16 +941,11 @@ function Library:CreateWindow(options)
     end)
     table.insert(Library.Connections, toggleConn)
 
-    -- Keybind frame update (throttled to 20/sec)
+    -- Keybind frame update (every frame, fingerprint check skips rebuilds)
     self:CreateKeybindFrame()
-    local kbTimer = 0
-    local kbConn = RunService.Heartbeat:Connect(function(dt)
+    local kbConn = RunService.Heartbeat:Connect(function()
         if Library.Unloaded then return end
-        kbTimer = kbTimer + dt
-        if kbTimer >= 0.05 then
-            kbTimer = 0
-            Library:UpdateKeybindFrame()
-        end
+        Library:UpdateKeybindFrame()
     end)
     table.insert(Library.Connections, kbConn)
 
@@ -986,7 +981,7 @@ function Library:CreateWindow(options)
                 Size = UDim2.new(0, 14, 0, 14),
                 BackgroundTransparency = 1,
                 Image = tabIcon,
-                ImageColor3 = Library.Theme.FontSecondary,
+                ImageColor3 = Library.Theme.FontPrimary,
                 LayoutOrder = 0,
             }))
             table.insert(tabChildren, Create("TextLabel", {
@@ -995,7 +990,7 @@ function Library:CreateWindow(options)
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
                 Text = tabName,
-                TextColor3 = Library.Theme.FontSecondary,
+                TextColor3 = Library.Theme.FontPrimary,
                 FontFace = Library.FontSemiBold,
                 TextSize = 14,
                 LayoutOrder = 1,
@@ -1006,7 +1001,7 @@ function Library:CreateWindow(options)
                 Size = UDim2.new(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 Text = tabName,
-                TextColor3 = Library.Theme.FontSecondary,
+                TextColor3 = Library.Theme.FontPrimary,
                 FontFace = Library.FontSemiBold,
                 TextSize = 14,
             }))
@@ -1033,9 +1028,9 @@ function Library:CreateWindow(options)
 
         Library:AddToRegistry(tabBtn, { BackgroundColor3 = "TabInactive" })
         local tabLabel = tabBtn:FindFirstChild("Label")
-        if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontSecondary" }) end
+        if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontPrimary" }) end
         local tabIconImg = tabBtn:FindFirstChild("Icon")
-        if tabIconImg then Library:AddToRegistry(tabIconImg, { ImageColor3 = "FontSecondary" }) end
+        if tabIconImg then Library:AddToRegistry(tabIconImg, { ImageColor3 = "FontPrimary" }) end
 
         local leftColumn = Create("ScrollingFrame", {
             Name = "LeftColumn",
@@ -1271,7 +1266,7 @@ function Library:CreateWindow(options)
                     BackgroundColor3 = Library.Theme.TabInactive,
                     BorderSizePixel = 0,
                     Text = name,
-                    TextColor3 = Library.Theme.FontSecondary,
+                    TextColor3 = Library.Theme.FontPrimary,
                     FontFace = Library.FontSemiBold,
                     TextSize = 14,
                     LayoutOrder = tOrder,
@@ -1284,7 +1279,7 @@ function Library:CreateWindow(options)
                     }),
                 })
 
-                Library:AddToRegistry(tbBtn, { BackgroundColor3 = "TabInactive", TextColor3 = "FontSecondary" })
+                Library:AddToRegistry(tbBtn, { BackgroundColor3 = "TabInactive", TextColor3 = "FontPrimary" })
 
                 local tbContent = Create("Frame", {
                     Name = "TBContent_" .. name,
@@ -1324,7 +1319,7 @@ function Library:CreateWindow(options)
                     for _, t in ipairs(TabBox._tabs) do
                         t._content.Visible = false
                         t._btn.BackgroundColor3 = Library.Theme.TabInactive
-                        t._btn.TextColor3 = Library.Theme.FontSecondary
+                        t._btn.TextColor3 = Library.Theme.FontPrimary
                     end
                     tbContent.Visible = true
                     tbBtn.BackgroundColor3 = Library.Theme.TabActive
@@ -1379,8 +1374,8 @@ function Library:CreateWindow(options)
             local btn = t._tabBtn
             if btn then
                 btn.BackgroundColor3 = Library.Theme.TabInactive
-                if t._tabLabel then t._tabLabel.TextColor3 = Library.Theme.FontSecondary end
-                if t._tabIcon then t._tabIcon.ImageColor3 = Library.Theme.FontSecondary end
+                if t._tabLabel then t._tabLabel.TextColor3 = Library.Theme.FontPrimary end
+                if t._tabIcon then t._tabIcon.ImageColor3 = Library.Theme.FontPrimary end
             end
         end
 

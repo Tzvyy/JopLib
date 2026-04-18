@@ -229,13 +229,13 @@ function Elements:Setup(Library)
                 Position = UDim2.new(1, -95, 0, 0),
                 BackgroundTransparency = 1,
                 Text = options.ValueText,
-                TextColor3 = lib.Theme.FontSecondary,
+                TextColor3 = lib.Theme.FontPrimary,
                 FontFace = lib.FontRegular,
                 TextSize = 13,
                 TextXAlignment = Enum.TextXAlignment.Right,
                 Parent = container,
             })
-            lib:AddToRegistry(valueLabel, { TextColor3 = "FontSecondary" })
+            lib:AddToRegistry(valueLabel, { TextColor3 = "FontPrimary" })
         end
 
         toggleObj._box = box
@@ -453,12 +453,12 @@ function Elements:Setup(Library)
             AutomaticSize = Enum.AutomaticSize.X,
             BackgroundTransparency = 1,
             Text = valText,
-            TextColor3 = lib.Theme.FontSecondary,
+            TextColor3 = lib.Theme.FontPrimary,
             FontFace = lib.FontRegular,
             TextSize = 13,
             Parent = valueBg,
         })
-        lib:AddToRegistry(valueLabel, { TextColor3 = "FontSecondary" })
+        lib:AddToRegistry(valueLabel, { TextColor3 = "FontPrimary" })
 
         local sliderY = compact and 0 or 20
         local sliderBg = Create("Frame", {
@@ -535,7 +535,7 @@ function Elements:Setup(Library)
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
                 Text = suffixText,
-                TextColor3 = lib.Theme.FontSecondary,
+                TextColor3 = lib.Theme.FontPrimary,
                 FontFace = lib.FontRegular,
                 TextSize = 13,
                 LayoutOrder = 1,
@@ -867,12 +867,12 @@ function Elements:Setup(Library)
             Position = UDim2.new(1, -20, 0, 0),
             BackgroundTransparency = 1,
             Text = "\226\150\188",
-            TextColor3 = lib.Theme.FontSecondary,
+            TextColor3 = lib.Theme.FontPrimary,
             FontFace = lib.FontRegular,
             TextSize = 11,
             Parent = dropBtn,
         })
-        lib:AddToRegistry(arrow, { TextColor3 = "FontSecondary" })
+        lib:AddToRegistry(arrow, { TextColor3 = "FontPrimary" })
 
         dropObj._displayLabel = displayLabel
 
@@ -974,7 +974,7 @@ function Elements:Setup(Library)
                     BackgroundTransparency = isSelected and 0.7 or 0,
                     BorderSizePixel = 0,
                     Text = val,
-                    TextColor3 = isSelected and lib.Theme.FontPrimary or lib.Theme.FontSecondary,
+                    TextColor3 = lib.Theme.FontPrimary,
                     FontFace = lib.FontRegular,
                     TextSize = 13,
                     LayoutOrder = i,
@@ -990,7 +990,7 @@ function Elements:Setup(Library)
                         local sel = dropObj.Value[val]
                         item.BackgroundTransparency = sel and 0.7 or 0
                         item.BackgroundColor3 = sel and lib.Theme.Accent or lib.Theme.ElementBg
-                        item.TextColor3 = sel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
+                        item.TextColor3 = lib.Theme.FontPrimary
                     else
                         if allowNull and dropObj.Value == val then
                             dropObj:SetValue(nil)
@@ -1001,7 +1001,7 @@ function Elements:Setup(Library)
                             local isSel = (entry.val == dropObj.Value)
                             entry.btn.BackgroundColor3 = isSel and lib.Theme.Accent or lib.Theme.ElementBg
                             entry.btn.BackgroundTransparency = isSel and 0.7 or 0
-                            entry.btn.TextColor3 = isSel and lib.Theme.FontPrimary or lib.Theme.FontSecondary
+                            entry.btn.TextColor3 = lib.Theme.FontPrimary
                         end
                     end
                 end)
@@ -1234,7 +1234,7 @@ function Elements:Setup(Library)
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             Text = text,
-            TextColor3 = lib.Theme.FontSecondary,
+            TextColor3 = lib.Theme.FontPrimary,
             FontFace = lib.FontRegular,
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -1248,7 +1248,7 @@ function Elements:Setup(Library)
             labelInst.AutomaticSize = Enum.AutomaticSize.None
         end
 
-        lib:AddToRegistry(labelInst, { TextColor3 = "FontSecondary" })
+        lib:AddToRegistry(labelInst, { TextColor3 = "FontPrimary" })
 
         local labelObj = {}
         labelObj._label = labelInst
@@ -1408,7 +1408,7 @@ function Elements:Setup(Library)
             BackgroundColor3 = lib.Theme.ElementBg,
             BorderSizePixel = 0,
             Text = default,
-            TextColor3 = lib.Theme.FontSecondary,
+            TextColor3 = lib.Theme.FontPrimary,
             FontFace = lib.FontRegular,
             TextSize = 12,
             Parent = kpFrame,
@@ -1416,7 +1416,7 @@ function Elements:Setup(Library)
             Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
-        lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontSecondary" })
+        lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
         local kbStroke = keyBtn:FindFirstChildOfClass("UIStroke")
         if kbStroke then lib:AddToRegistry(kbStroke, { Color = "ElementBorder" }) end
 
@@ -1491,14 +1491,14 @@ function Elements:Setup(Library)
             if keyName == "Escape" or keyName == "Backspace" then
                 listening = false
                 kpObj:SetValue({"None", kpObj.Mode})
-                keyBtn.TextColor3 = lib.Theme.FontSecondary
+                keyBtn.TextColor3 = lib.Theme.FontPrimary
                 return
             end
             local mods = GetModifierPrefix()
             local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
             listening = false
             kpObj:SetValue({fullName, kpObj.Mode})
-            keyBtn.TextColor3 = lib.Theme.FontSecondary
+            keyBtn.TextColor3 = lib.Theme.FontPrimary
         end)
         table.insert(lib.Connections, inputConn)
 
@@ -1511,7 +1511,7 @@ function Elements:Setup(Library)
                 local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
                 listening = false
                 kpObj:SetValue({fullName, kpObj.Mode})
-                keyBtn.TextColor3 = lib.Theme.FontSecondary
+                keyBtn.TextColor3 = lib.Theme.FontPrimary
             end
         end)
         table.insert(lib.Connections, scrollConn)
