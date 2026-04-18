@@ -517,13 +517,6 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
         end
         if ThemeManager:LoadCustomTheme(name) then
             if lib.Notify then lib:Notify("Theme loaded: " .. name, 2) end
-            local autoToggle = lib.Flags.AutoLoadTheme
-            if autoToggle then
-                autoToggle:SetValueText(name)
-                if autoToggle.Value then
-                    ThemeManager:_saveAutoloadSilent(name)
-                end
-            end
         end
     end)
 

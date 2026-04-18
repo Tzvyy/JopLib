@@ -88,7 +88,7 @@ local function MakeDraggable(frame, handle, onPositionChanged)
             dragStart = input.Position
             startPos = frame.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.InputInputState.End then
+                if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                     if onPositionChanged then
                         onPositionChanged(frame.Position)
@@ -98,7 +98,7 @@ local function MakeDraggable(frame, handle, onPositionChanged)
         end
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
+    local moveConn = UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(
@@ -109,7 +109,7 @@ local function MakeDraggable(frame, handle, onPositionChanged)
     end)
 
     -- Also track when drag ends via InputEnded
-    UserInputService.InputEnded:Connect(function(input)
+    local endConn = UserInputService.InputEnded:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
             dragging = false
             if onPositionChanged then
@@ -117,6 +117,8 @@ local function MakeDraggable(frame, handle, onPositionChanged)
             end
         end
     end)
+
+    return moveConn, endConn
 end
 
 -- ============================================================
@@ -535,7 +537,9 @@ function Library:CreateWatermark()
     local function onPosChanged(pos)
         self.WatermarkPosition = pos
     end
-    MakeDraggable(frame, nil, onPosChanged)
+    local mc, ec = MakeDraggable(frame, nil, onPosChanged)
+    table.insert(self.Connections, mc)
+    table.insert(self.Connections, ec)
     self._watermarkGui = gui
     self._watermarkFrame = frame
 end
@@ -615,29 +619,32 @@ function Library:CreateKeybindFrame()
     local function onPosChanged(pos)
         self.KeybindFramePosition = pos
     end
-    MakeDraggable(frame, nil, onPosChanged)
+    local mc, ec = MakeDraggable(frame, nil, onPosChanged)
+    table.insert(self.Connections, mc)
+    table.insert(self.Connections, ec)
     self._keybindGui = gui
     self._keybindFrame = frame
     self._keybindList = listFrame
     self.KeybindFrame = frame
 end
 
+local _fpParts = {}
 function Library:UpdateKeybindFrame()
     if not self._keybindGui or not self._keybindFrame.Visible then return end
 
     -- Build fingerprint to detect changes
     local showAll = not (self._keybindFilterActive)
-    local fpParts = {}
     local fpN = 0
     for flag, opt in pairs(self.Flags) do
         if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
             if not showAll and not opt._isActive then continue end
             local isActive = opt._isActive or ((opt.Mode or "Toggle") == "Always")
             fpN = fpN + 1
-            fpParts[fpN] = flag .. "|" .. opt.Value .. "|" .. (opt.Mode or "Toggle") .. "|" .. (isActive and "1" or "0")
+            _fpParts[fpN] = flag .. "|" .. opt.Value .. "|" .. (opt.Mode or "Toggle") .. "|" .. (isActive and "1" or "0")
         end
     end
-    local fingerprint = table.concat(fpParts, ";", 1, fpN)
+    for i = fpN + 1, #_fpParts do _fpParts[i] = nil end
+    local fingerprint = table.concat(_fpParts, ";", 1, fpN)
     if fingerprint == self._keybindFingerprint then return end
     self._keybindFingerprint = fingerprint
 
@@ -838,7 +845,9 @@ function Library:CreateWindow(options)
     self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
     self:AddToRegistry(accentLine, { BackgroundColor3 = "Accent" })
 
-    MakeDraggable(mainFrame, titleBar)
+    local mc, ec = MakeDraggable(mainFrame, titleBar)
+    table.insert(self.Connections, mc)
+    table.insert(self.Connections, ec)
 
     local titleLabel = Create("TextLabel", {
         Name = "TitleText",

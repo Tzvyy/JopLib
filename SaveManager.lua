@@ -272,9 +272,9 @@ function SaveManager:LoadAutoloadConfig()
         name = name:match("^%s*(.-)%s*$") or ""
 
         if name ~= "" then
-            local success, err = self:Load(name)
+            local success = self:Load(name)
             if not success then
-                return self.Library:Notify("Failed to load autoload config: " .. tostring(err))
+                return self.Library:Notify("Failed to load autoload config: " .. name, 3)
             end
             self.Library:Notify(string.format("Auto loaded config %q", name))
         end

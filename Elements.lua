@@ -420,9 +420,9 @@ function Elements:Setup(Library)
 
         local valText
         if compact or hideMax then
-            valText = tostring(default) .. suffix
+            valText = string.format("%s%s", default, suffix)
         else
-            valText = tostring(default) .. " / " .. tostring(max) .. suffix
+            valText = string.format("%s / %s%s", default, max, suffix)
         end
 
         local valueBg = Create("Frame", {
@@ -951,6 +951,19 @@ function Elements:Setup(Library)
             end
 
             local itemButtons = {}
+            local _cachedItemHoverBg, _cachedItemBaseBg
+            local function getItemHoverColor()
+                local base = lib.Theme.ElementBg
+                if base ~= _cachedItemBaseBg then
+                    _cachedItemBaseBg = base
+                    _cachedItemHoverBg = Color3.fromRGB(
+                        math.min(255, base.R * 255 + 20),
+                        math.min(255, base.G * 255 + 20),
+                        math.min(255, base.B * 255 + 20)
+                    )
+                end
+                return _cachedItemHoverBg
+            end
 
             for i, val in ipairs(values) do
                 local isSelected = multi and dropObj.Value[val] or (dropObj.Value == val)
@@ -996,12 +1009,7 @@ function Elements:Setup(Library)
                 item.MouseEnter:Connect(function()
                     local sel = multi and dropObj.Value[val] or (dropObj.Value == val)
                     if not sel then
-                        local bg = lib.Theme.ElementBg
-                        item.BackgroundColor3 = Color3.fromRGB(
-                            math.min(255, bg.R * 255 + 20),
-                            math.min(255, bg.G * 255 + 20),
-                            math.min(255, bg.B * 255 + 20)
-                        )
+                        item.BackgroundColor3 = getItemHoverColor()
                     end
                 end)
                 item.MouseLeave:Connect(function()
@@ -1702,6 +1710,13 @@ function Elements:Setup(Library)
             end
 
             for i, item in ipairs(menuItems) do
+                local btnChildren = {
+                    Create("UIPadding", { PaddingLeft = UDim.new(0, 8) }),
+                }
+                if i == 1 or i == #menuItems then
+                    btnChildren[#btnChildren + 1] = Create("UICorner", { CornerRadius = UDim.new(0, 4) })
+                end
+
                 local mBtn = Create("TextButton", {
                     Size = UDim2.new(1, 0, 0, 22),
                     BackgroundColor3 = lib.Theme.ElementBg,
@@ -1715,11 +1730,7 @@ function Elements:Setup(Library)
                     LayoutOrder = i,
                     ZIndex = 101,
                     Parent = ctxMenu,
-                }, {
-                    Create("UIPadding", { PaddingLeft = UDim.new(0, 8) }),
-                    i == 1 and Create("UICorner", { CornerRadius = UDim.new(0, 4) }) or nil,
-                    i == #menuItems and Create("UICorner", { CornerRadius = UDim.new(0, 4) }) or nil,
-                })
+                }, btnChildren)
                 mBtn.MouseButton1Click:Connect(function()
                     item.action()
                     closeCtxMenu()
