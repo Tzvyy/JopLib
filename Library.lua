@@ -644,7 +644,7 @@ function Library:UpdateKeybindFrame()
         end
     end
     fpN = fpN + 1
-    _fpParts[fpN] = tostring(self.Theme.FontSecondary) .. "|" .. tostring(self.Theme.Accent)
+    _fpParts[fpN] = self.Theme.FontSecondary:ToHex() .. "|" .. self.Theme.Accent:ToHex()
     for i = fpN + 1, #_fpParts do _fpParts[i] = nil end
     local fingerprint = table.concat(_fpParts, ";", 1, fpN)
     if fingerprint == self._keybindFingerprint then return end
