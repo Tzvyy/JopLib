@@ -1639,8 +1639,10 @@ function Elements:Setup(Library)
 
         local pickerFrame = nil
         local pickerTrackConn = nil
+        local pickerMoveConn = nil
 
         local function closePicker()
+            if pickerMoveConn then pickerMoveConn:Disconnect() pickerMoveConn = nil end
             if pickerTrackConn then pickerTrackConn:Disconnect() pickerTrackConn = nil end
             if pickerFrame then pickerFrame:Destroy() pickerFrame = nil end
         end
@@ -2063,7 +2065,7 @@ function Elements:Setup(Library)
             end)
 
             -- Move handler for all drags
-            local pickerMoveConn = UserInputService.InputChanged:Connect(function(input)
+            pickerMoveConn = UserInputService.InputChanged:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
                 if svDragging then
                     s = math.clamp((input.Position.X - svField.AbsolutePosition.X) / svField.AbsoluteSize.X, 0, 1)
@@ -2192,13 +2194,15 @@ function Elements:Setup(Library)
                 local wantState = dep[2]
                 if toggle then
                     if wantState then
-                        if not toggle.Value then visible = false end
+                        if not toggle.Value then visible = false break end
                     else
-                        if toggle.Value then visible = false end
+                        if toggle.Value then visible = false break end
                     end
                 end
             end
-            container.Visible = visible
+            if container.Visible ~= visible then
+                container.Visible = visible
+            end
         end
 
         function depBox:SetupDependencies(deps)

@@ -137,21 +137,21 @@ Library.Unloaded = false
 Library.DebugLogs = false
 
 Library.Theme = {
-    Background       = Color3.fromRGB(20, 20, 20),
-    TitleBar         = Color3.fromRGB(25, 25, 25),
-    TabBackground    = Color3.fromRGB(28, 28, 28),
-    TabActive        = Color3.fromRGB(35, 35, 35),
-    TabInactive      = Color3.fromRGB(28, 28, 28),
-    GroupboxBg       = Color3.fromRGB(25, 25, 25),
-    ElementBg        = Color3.fromRGB(35, 35, 35),
-    ElementBorder    = Color3.fromRGB(50, 50, 50),
-    FontPrimary      = Color3.fromRGB(220, 220, 220),
-    FontSecondary    = Color3.fromRGB(160, 160, 160),
+    Background       = Color3.fromRGB(35, 35, 40),
+    TitleBar         = Color3.fromRGB(40, 40, 46),
+    TabBackground    = Color3.fromRGB(38, 38, 44),
+    TabActive        = Color3.fromRGB(50, 50, 58),
+    TabInactive      = Color3.fromRGB(38, 38, 44),
+    GroupboxBg       = Color3.fromRGB(38, 38, 44),
+    ElementBg        = Color3.fromRGB(48, 48, 56),
+    ElementBorder    = Color3.fromRGB(60, 60, 68),
+    FontPrimary      = Color3.fromRGB(220, 220, 225),
+    FontSecondary    = Color3.fromRGB(150, 150, 160),
     Accent           = Color3.fromRGB(96, 105, 255),
     ToggleOn         = Color3.fromRGB(96, 105, 255),
-    ToggleOff        = Color3.fromRGB(50, 50, 50),
+    ToggleOff        = Color3.fromRGB(55, 55, 62),
     SliderFill       = Color3.fromRGB(96, 105, 255),
-    Border           = Color3.fromRGB(45, 45, 45),
+    Border           = Color3.fromRGB(55, 55, 62),
 }
 
 Library.Elements = {}
@@ -347,14 +347,16 @@ function Library:AddToolTip(text, hoverInstance)
         isHovering = true
         tipFrame.Position = UDim2.fromOffset(Mouse.X + 15, Mouse.Y + 12)
         tipFrame.Visible = true
-        while isHovering do
+        while isHovering and tipFrame and tipFrame.Parent do
             RunService.Heartbeat:Wait()
             tipFrame.Position = UDim2.fromOffset(Mouse.X + 15, Mouse.Y + 12)
         end
     end)
     hoverInstance.MouseLeave:Connect(function()
         isHovering = false
-        tipFrame.Visible = false
+        if tipFrame and tipFrame.Parent then
+            tipFrame.Visible = false
+        end
     end)
 
     return tipFrame
@@ -459,13 +461,7 @@ function Library:Notify(text, duration)
         }),
     })
 
-    self:AddToRegistry(notif, { BackgroundColor3 = "Background" })
-    local notifStroke = notif:FindFirstChildOfClass("UIStroke")
-    if notifStroke then self:AddToRegistry(notifStroke, { Color = "Border" }) end
-    local accentBar = notif:FindFirstChild("AccentBar")
-    if accentBar then self:AddToRegistry(accentBar, { BackgroundColor3 = "Accent" }) end
     local textLabel = notif:FindFirstChild("Text")
-    if textLabel then self:AddToRegistry(textLabel, { TextColor3 = "FontPrimary" }) end
 
     -- Wait a frame for TextBounds to compute
     task.defer(function()
