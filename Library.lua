@@ -643,6 +643,8 @@ function Library:UpdateKeybindFrame()
             _fpParts[fpN] = flag .. "|" .. opt.Value .. "|" .. (opt.Mode or "Toggle") .. "|" .. (isActive and "1" or "0")
         end
     end
+    fpN = fpN + 1
+    _fpParts[fpN] = tostring(self.Theme.FontSecondary) .. "|" .. tostring(self.Theme.Accent)
     for i = fpN + 1, #_fpParts do _fpParts[i] = nil end
     local fingerprint = table.concat(_fpParts, ";", 1, fpN)
     if fingerprint == self._keybindFingerprint then return end
