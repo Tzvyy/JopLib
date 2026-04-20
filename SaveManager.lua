@@ -142,6 +142,13 @@ function SaveManager:_serialize()
                 Y = { pos.Y.Scale, pos.Y.Offset },
             }
         end
+        -- Save floating panel positions.
+        for name, panelPos in pairs(lib._floatingPanelPositions) do
+            data["_panelPos_" .. name] = {
+                X = { panelPos.X.Scale, panelPos.X.Offset },
+                Y = { panelPos.Y.Scale, panelPos.Y.Offset },
+            }
+        end
     end
 
     return data
@@ -213,6 +220,19 @@ function SaveManager:_deserialize(data)
             -- Apply immediately if frame exists
             if lib._keybindFrame then
                 lib._keybindFrame.Position = lib.KeybindFramePosition
+            end
+        end
+        -- Restore floating panel positions.
+        for key, val in pairs(data) do
+            if type(key) == "string" and key:sub(1, 10) == "_panelPos_" then
+                local panelName = key:sub(11)
+                local panelPos = UDim2.new(val.X[1], val.X[2], val.Y[1], val.Y[2])
+                lib._floatingPanelPositions[panelName] = panelPos
+                -- Apply immediately if panel already exists.
+                local panel = lib._floatingPanels[panelName]
+                if panel and panel._frame then
+                    panel._frame.Position = panelPos
+                end
             end
         end
     end

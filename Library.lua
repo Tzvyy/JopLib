@@ -161,6 +161,8 @@ Library._unloadCallbacks = {}
 Library._openPopup = nil
 Library.NotifyOnError = true
 Library.RiskColor = Color3.fromRGB(255, 50, 50)
+Library._floatingPanels = {}
+Library._floatingPanelPositions = {}
 
 -- Instance-scoped proxy tables for Toggles and Options
 -- These ensure each Library instance only sees its own flags,
@@ -699,6 +701,149 @@ function Library:UpdateKeybindFrame()
 
     local totalHeight = 34 + (count * 20)
     self._keybindFrame.Size = UDim2.new(0, 220, 0, math.max(30, totalHeight))
+end
+
+-- ============================================================
+-- FLOATING PANEL (reusable themed panel for any purpose)
+-- ============================================================
+
+function Library:CreateFloatingPanel(options)
+    options = options or {}
+    local name = options.Name or ("Panel_" .. tostring(tick()))
+    local title = options.Title or "Panel"
+    local width = options.Width or 220
+    local defaultPos = options.Position or UDim2.new(1, -(width + 10), 0, 10)
+    local startVisible = options.Visible or false
+
+    -- Use saved position if available.
+    local savedPos = self._floatingPanelPositions[name]
+    local pos = savedPos or defaultPos
+
+    local gui = Create("ScreenGui", {
+        Name = "JopLib_" .. name,
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
+    ProtectGui(gui)
+    gui.Parent = CoreGui
+
+    local frame = Create("Frame", {
+        Name = "PanelFrame",
+        Size = UDim2.new(0, width, 0, 30),
+        Position = pos,
+        BackgroundColor3 = self.Theme.Background,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Visible = startVisible,
+        Parent = gui,
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("TextLabel", {
+            Name = "Title",
+            Size = UDim2.new(1, -8, 0, 24),
+            Position = UDim2.new(0, 6, 0, 3),
+            BackgroundTransparency = 1,
+            Text = title,
+            TextColor3 = self.Theme.FontSecondary,
+            TextSize = 14,
+            FontFace = self.FontBold,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }),
+    })
+
+    local listFrame = Create("Frame", {
+        Name = "List",
+        Size = UDim2.new(1, -10, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Position = UDim2.new(0, 5, 0, 28),
+        BackgroundTransparency = 1,
+        Parent = frame,
+    }, {
+        Create("UIListLayout", {
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 1),
+        }),
+    })
+
+    -- Register for theme updates.
+    self:AddToRegistry(frame, { BackgroundColor3 = "Background" }, true)
+    local stroke = frame:FindFirstChildOfClass("UIStroke")
+    if stroke then self:AddToRegistry(stroke, { Color = "Border" }, true) end
+    local titleLabel = frame:FindFirstChild("Title", true)
+    if titleLabel then self:AddToRegistry(titleLabel, { TextColor3 = "FontSecondary" }, true) end
+
+    -- Make draggable and track position.
+    local panel = {}
+    panel._name = name
+    panel._gui = gui
+    panel._frame = frame
+    panel._listFrame = listFrame
+    panel._titleLabel = titleLabel
+    panel._lineCount = 0
+    panel._entryHeight = 16
+    panel._fontSize = 13
+
+    local function onPosChanged(newPos)
+        self._floatingPanelPositions[name] = newPos
+    end
+    local mc, ec = MakeDraggable(frame, nil, onPosChanged)
+    table.insert(self.Connections, mc)
+    table.insert(self.Connections, ec)
+
+    function panel:SetTitle(text)
+        if self._titleLabel then
+            self._titleLabel.Text = text
+        end
+    end
+
+    function panel:SetLines(lines)
+        -- Clear existing entries.
+        for _, child in ipairs(self._listFrame:GetChildren()) do
+            if child:IsA("TextLabel") then child:Destroy() end
+        end
+
+        local count = 0
+        for i, entry in ipairs(lines) do
+            count = count + 1
+            Create("TextLabel", {
+                Size = UDim2.new(1, 0, 0, self._entryHeight),
+                BackgroundTransparency = 1,
+                Text = entry.text or entry[1] or "",
+                TextColor3 = entry.color or entry[2] or Library.Theme.FontPrimary,
+                FontFace = Library.FontRegular,
+                TextSize = self._fontSize,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                LayoutOrder = i,
+                Parent = self._listFrame,
+            })
+        end
+
+        self._lineCount = count
+        local totalHeight = 32 + (count * (self._entryHeight + 1))
+        self._frame.Size = UDim2.new(0, self._frame.Size.X.Offset, 0, math.max(30, totalHeight))
+    end
+
+    function panel:SetVisible(visible)
+        self._frame.Visible = visible
+    end
+
+    function panel:IsVisible()
+        return self._frame.Visible
+    end
+
+    function panel:Destroy()
+        Library._floatingPanels[self._name] = nil
+        if self._gui then
+            self._gui:Destroy()
+            self._gui = nil
+        end
+    end
+
+    self._floatingPanels[name] = panel
+    return panel
 end
 
 -- ============================================================
@@ -1470,6 +1615,13 @@ function Library:Unload()
         self._keybindGui:Destroy()
         self._keybindGui = nil
     end
+
+    for _, panel in pairs(self._floatingPanels) do
+        pcall(function()
+            if panel._gui then panel._gui:Destroy() end
+        end)
+    end
+    self._floatingPanels = {}
 
     if NotificationHolder then
         NotificationHolder:Destroy()
