@@ -747,7 +747,7 @@ function Library:CreateFloatingPanel(options)
             BackgroundTransparency = 1,
             Text = title,
             TextColor3 = self.Theme.FontSecondary,
-            TextSize = 14,
+            TextSize = 13,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
@@ -782,8 +782,8 @@ function Library:CreateFloatingPanel(options)
     panel._listFrame = listFrame
     panel._titleLabel = titleLabel
     panel._lineCount = 0
-    panel._entryHeight = 16
-    panel._fontSize = 13
+    panel._entryHeight = options.EntryHeight or 14
+    panel._fontSize = options.FontSize or 12
 
     local function onPosChanged(newPos)
         self._floatingPanelPositions[name] = newPos
