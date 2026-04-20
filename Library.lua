@@ -811,7 +811,7 @@ function Library:CreateFloatingPanel(options)
                 Size = UDim2.new(1, 0, 0, self._entryHeight),
                 BackgroundTransparency = 1,
                 Text = entry.text or entry[1] or "",
-                TextColor3 = entry.color or entry[2] or Library.Theme.FontPrimary,
+                TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
                 FontFace = Library.FontRegular,
                 TextSize = self._fontSize,
                 TextXAlignment = Enum.TextXAlignment.Left,
