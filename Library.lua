@@ -463,7 +463,14 @@ function Library:Notify(text, duration)
         }),
     })
 
+    -- Register for theme updates so autoloaded themes apply correctly.
+    self:AddToRegistry(notif, { BackgroundColor3 = "Background" })
+    local nStroke = notif:FindFirstChildOfClass("UIStroke")
+    if nStroke then self:AddToRegistry(nStroke, { Color = "Border" }) end
+    local accentBar = notif:FindFirstChild("AccentBar")
+    if accentBar then self:AddToRegistry(accentBar, { BackgroundColor3 = "Accent" }) end
     local textLabel = notif:FindFirstChild("Text")
+    if textLabel then self:AddToRegistry(textLabel, { TextColor3 = "FontPrimary" }) end
 
     -- Wait a frame for TextBounds to compute
     task.defer(function()
@@ -476,7 +483,13 @@ function Library:Notify(text, duration)
             local t = Tween(notif, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
             t:Play()
             t.Completed:Wait()
-            if notif.Parent then notif:Destroy() end
+            if notif.Parent then
+                self:RemoveFromRegistry(notif)
+                if nStroke then self:RemoveFromRegistry(nStroke) end
+                if accentBar then self:RemoveFromRegistry(accentBar) end
+                if textLabel then self:RemoveFromRegistry(textLabel) end
+                notif:Destroy()
+            end
         end)
     end)
 end
