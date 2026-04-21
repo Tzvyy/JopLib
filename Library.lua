@@ -755,12 +755,12 @@ function Library:CreateFloatingPanel(options)
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("TextLabel", {
             Name = "Title",
-            Size = UDim2.new(1, -8, 0, 24),
-            Position = UDim2.new(0, 6, 0, 3),
+            Size = UDim2.new(1, -8, 0, 18),
+            Position = UDim2.new(0, 6, 0, 2),
             BackgroundTransparency = 1,
             Text = title,
             TextColor3 = self.Theme.FontSecondary,
-            TextSize = 13,
+            TextSize = 14,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
@@ -770,13 +770,13 @@ function Library:CreateFloatingPanel(options)
         Name = "List",
         Size = UDim2.new(1, -10, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        Position = UDim2.new(0, 5, 0, 28),
+        Position = UDim2.new(0, 5, 0, 22),
         BackgroundTransparency = 1,
         Parent = frame,
     }, {
         Create("UIListLayout", {
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 1),
+            Padding = UDim.new(0, 0),
         }),
     })
 
@@ -795,8 +795,8 @@ function Library:CreateFloatingPanel(options)
     panel._listFrame = listFrame
     panel._titleLabel = titleLabel
     panel._lineCount = 0
-    panel._entryHeight = options.EntryHeight or 14
-    panel._fontSize = options.FontSize or 12
+    panel._entryHeight = options.EntryHeight or 13
+    panel._fontSize = options.FontSize or 14
 
     local function onPosChanged(newPos)
         self._floatingPanelPositions[name] = newPos
@@ -835,7 +835,7 @@ function Library:CreateFloatingPanel(options)
         end
 
         self._lineCount = count
-        local totalHeight = 32 + (count * (self._entryHeight + 1))
+        local totalHeight = 24 + (count * self._entryHeight)
         self._frame.Size = UDim2.new(0, self._frame.Size.X.Offset, 0, math.max(30, totalHeight))
     end
 
