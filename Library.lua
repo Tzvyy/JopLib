@@ -755,29 +755,25 @@ function Library:CreateFloatingPanel(options)
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("TextLabel", {
             Name = "Title",
-            Size = UDim2.new(1, -8, 0, 18),
-            Position = UDim2.new(0, 6, 0, 2),
+            Size = UDim2.new(1, -8, 0, 24),
+            Position = UDim2.new(0, 6, 0, 3),
             BackgroundTransparency = 1,
             Text = title,
             TextColor3 = self.Theme.FontSecondary,
-            TextSize = 14,
+            TextSize = 13,
             FontFace = self.FontBold,
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
     })
 
+    local columns = options.Columns or 1
+
     local listFrame = Create("Frame", {
         Name = "List",
         Size = UDim2.new(1, -10, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
         Position = UDim2.new(0, 5, 0, 22),
         BackgroundTransparency = 1,
         Parent = frame,
-    }, {
-        Create("UIListLayout", {
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 0),
-        }),
     })
 
     -- Register for theme updates.
@@ -797,6 +793,7 @@ function Library:CreateFloatingPanel(options)
     panel._lineCount = 0
     panel._entryHeight = options.EntryHeight or 13
     panel._fontSize = options.FontSize or 14
+    panel._columns = columns
 
     local function onPosChanged(newPos)
         self._floatingPanelPositions[name] = newPos
@@ -817,25 +814,58 @@ function Library:CreateFloatingPanel(options)
             if child:IsA("TextLabel") then child:Destroy() end
         end
 
-        local count = 0
-        for i, entry in ipairs(lines) do
-            count = count + 1
-            Create("TextLabel", {
-                Size = UDim2.new(1, 0, 0, self._entryHeight),
-                BackgroundTransparency = 1,
-                Text = entry.text or entry[1] or "",
-                TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
-                FontFace = Library.FontRegular,
-                TextSize = self._fontSize,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextTruncate = Enum.TextTruncate.AtEnd,
-                LayoutOrder = i,
-                Parent = self._listFrame,
-            })
+        local cols = self._columns
+        local yOffset = 0
+        local colIndex = 0
+
+        for _, entry in ipairs(lines) do
+            local isFullWidth = entry.fullWidth or cols <= 1
+
+            if isFullWidth then
+                if colIndex > 0 then
+                    yOffset = yOffset + self._entryHeight
+                    colIndex = 0
+                end
+                Create("TextLabel", {
+                    Size = UDim2.new(1, 0, 0, self._entryHeight),
+                    Position = UDim2.new(0, 0, 0, yOffset),
+                    BackgroundTransparency = 1,
+                    Text = entry.text or entry[1] or "",
+                    TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
+                    FontFace = Library.FontRegular,
+                    TextSize = self._fontSize,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Parent = self._listFrame,
+                })
+                yOffset = yOffset + self._entryHeight
+            else
+                local colWidth = 1 / cols
+                Create("TextLabel", {
+                    Size = UDim2.new(colWidth, -2, 0, self._entryHeight),
+                    Position = UDim2.new(colWidth * colIndex, 1, 0, yOffset),
+                    BackgroundTransparency = 1,
+                    Text = entry.text or entry[1] or "",
+                    TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
+                    FontFace = Library.FontRegular,
+                    TextSize = self._fontSize,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Parent = self._listFrame,
+                })
+                colIndex = colIndex + 1
+                if colIndex >= cols then
+                    colIndex = 0
+                    yOffset = yOffset + self._entryHeight
+                end
+            end
         end
 
-        self._lineCount = count
-        local totalHeight = 24 + (count * self._entryHeight)
+        if colIndex > 0 then
+            yOffset = yOffset + self._entryHeight
+        end
+
+        local totalHeight = 24 + yOffset
         self._frame.Size = UDim2.new(0, self._frame.Size.X.Offset, 0, math.max(30, totalHeight))
     end
 
