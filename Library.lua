@@ -808,61 +808,70 @@ function Library:CreateFloatingPanel(options)
         end
     end
 
-    function panel:SetLines(lines)
-        -- Clear existing entries.
-        for _, child in ipairs(self._listFrame:GetChildren()) do
-            if child:IsA("TextLabel") then child:Destroy() end
-        end
+    panel._pool = {} -- Reusable TextLabel pool.
+    panel._poolUsed = 0
 
+    local function getPooledLabel(pool, parent, fontSize)
+        pool._poolUsed = pool._poolUsed + 1
+        local idx = pool._poolUsed
+        local label = pool._pool[idx]
+        if not label then
+            label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.FontFace = Library.FontRegular
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextTruncate = Enum.TextTruncate.AtEnd
+            label.Parent = parent
+            pool._pool[idx] = label
+        end
+        label.TextSize = fontSize
+        label.Visible = true
+        return label
+    end
+
+    function panel:SetLines(lines)
         local cols = self._columns
         local yOffset = 0
         local colIndex = 0
+        local defaultColor = Library.Theme.FontSecondary
+        local eH = self._entryHeight
+        local fS = self._fontSize
+
+        self._poolUsed = 0
 
         for _, entry in ipairs(lines) do
             local isFullWidth = entry.fullWidth or cols <= 1
+            local label = getPooledLabel(self, self._listFrame, fS)
+            label.Text = entry.text or entry[1] or ""
+            label.TextColor3 = entry.color or entry[2] or defaultColor
 
             if isFullWidth then
                 if colIndex > 0 then
-                    yOffset = yOffset + self._entryHeight
+                    yOffset = yOffset + eH
                     colIndex = 0
                 end
-                Create("TextLabel", {
-                    Size = UDim2.new(1, 0, 0, self._entryHeight),
-                    Position = UDim2.new(0, 0, 0, yOffset),
-                    BackgroundTransparency = 1,
-                    Text = entry.text or entry[1] or "",
-                    TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
-                    FontFace = Library.FontRegular,
-                    TextSize = self._fontSize,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    Parent = self._listFrame,
-                })
-                yOffset = yOffset + self._entryHeight
+                label.Size = UDim2.new(1, 0, 0, eH)
+                label.Position = UDim2.new(0, 0, 0, yOffset)
+                yOffset = yOffset + eH
             else
                 local colWidth = 1 / cols
-                Create("TextLabel", {
-                    Size = UDim2.new(colWidth, -2, 0, self._entryHeight),
-                    Position = UDim2.new(colWidth * colIndex, 1, 0, yOffset),
-                    BackgroundTransparency = 1,
-                    Text = entry.text or entry[1] or "",
-                    TextColor3 = entry.color or entry[2] or Library.Theme.FontSecondary,
-                    FontFace = Library.FontRegular,
-                    TextSize = self._fontSize,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    Parent = self._listFrame,
-                })
+                label.Size = UDim2.new(colWidth, -2, 0, eH)
+                label.Position = UDim2.new(colWidth * colIndex, 1, 0, yOffset)
                 colIndex = colIndex + 1
                 if colIndex >= cols then
                     colIndex = 0
-                    yOffset = yOffset + self._entryHeight
+                    yOffset = yOffset + eH
                 end
             end
         end
 
+        -- Hide unused pooled labels.
+        for i = self._poolUsed + 1, #self._pool do
+            self._pool[i].Visible = false
+        end
+
         if colIndex > 0 then
-            yOffset = yOffset + self._entryHeight
+            yOffset = yOffset + eH
         end
 
         local totalHeight = 24 + yOffset
