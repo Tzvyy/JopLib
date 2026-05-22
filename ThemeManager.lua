@@ -617,9 +617,8 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     })
 
     lib.Flags.ShowKeybindFrame:OnChanged(function()
-        if lib.KeybindFrame then
-            lib.KeybindFrame.Visible = lib.Flags.ShowKeybindFrame.Value
-        end
+        lib._keybindFrameUserVisible = lib.Flags.ShowKeybindFrame.Value
+        if lib.UpdateKeybindFrame then lib:UpdateKeybindFrame() end
     end)
 
     menu:AddDropdown("KeybindListFilter", {
@@ -630,6 +629,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     lib.Flags.KeybindListFilter:OnChanged(function()
         lib._keybindFilterActive = (lib.Flags.KeybindListFilter.Value == "Active Only")
+        if lib.UpdateKeybindFrame then lib:UpdateKeybindFrame() end
     end)
 
     menu:AddDivider()

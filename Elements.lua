@@ -112,6 +112,21 @@ function Elements:Setup(Library)
     local Groupbox = {}
 
     -- ============================================================
+    -- DEPENDENCY GATE: returns true if elem may fire callbacks.
+    -- Walks _parentDep chain; suppress when any ancestor depbox is
+    -- hidden. Values still update via SetValue; only callbacks gated.
+    -- ============================================================
+    local function DepGated(elem)
+        local dep = elem and elem._parentDep
+        while dep do
+            if dep._visible == false then return false end
+            dep = dep._parentDep
+        end
+        return true
+    end
+    Groupbox._DepGated = DepGated
+
+    -- ============================================================
     -- TOGGLE
     -- ============================================================
 
@@ -170,8 +185,10 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Toggle '", flag, "' set to:", val)
             end
-            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
-            if callback then lib:SafeCallback(callback, val) end
+            if DepGated(self) then
+                for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+                if callback then lib:SafeCallback(callback, val) end
+            end
             lib:UpdateDependencyBoxes()
         end
 
@@ -311,6 +328,7 @@ function Elements:Setup(Library)
             kpOptions = kpOptions or {}
             kpOptions.SyncToggleState = flag
             local kp = Groupbox._addKeyPickerToContainer(toggleObj._container, kpFlag, kpOptions, lib)
+            kp._parentDep = toggleObj._parentDep
             toggleObj._kpFlag = kpFlag
             table.insert(toggleObj.Addons, kp)
             toggleObj:_layoutAccessories()
@@ -319,6 +337,7 @@ function Elements:Setup(Library)
 
         function toggleObj:AddColorPicker(cpFlag, cpOptions)
             local cp = Groupbox._addColorPickerToContainer(toggleObj._container, cpFlag, cpOptions, lib)
+            cp._parentDep = toggleObj._parentDep
             table.insert(self._cpFlags, cpFlag)
             table.insert(toggleObj.Addons, cp)
             toggleObj:_layoutAccessories()
@@ -390,8 +409,10 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Slider '", flag, "' set to:", val)
             end
-            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
-            if callback then lib:SafeCallback(callback, val) end
+            if DepGated(self) then
+                for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+                if callback then lib:SafeCallback(callback, val) end
+            end
         end
 
         local containerHeight = compact and 22 or 36
@@ -799,8 +820,10 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Dropdown '", flag, "' set to:", tostring(self.Value))
             end
-            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
-            if callback then lib:SafeCallback(callback, self.Value) end
+            if DepGated(self) then
+                for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+                if callback then lib:SafeCallback(callback, self.Value) end
+            end
         end
 
         function dropObj:SetValues(newValues)
@@ -1145,8 +1168,10 @@ function Elements:Setup(Library)
             if lib.DebugLogs then
                 print("[JopLib] Input '", flag, "' set to:", tostring(val))
             end
-            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
-            if callback then lib:SafeCallback(callback, val) end
+            if DepGated(self) then
+                for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, val) end
+                if callback then lib:SafeCallback(callback, val) end
+            end
         end
 
         local container = Create("Frame", {
@@ -1279,6 +1304,7 @@ function Elements:Setup(Library)
 
         function labelObj:AddColorPicker(cpFlag, cpOptions)
             local cp = Groupbox._addColorPickerToContainer(labelInst, cpFlag, cpOptions, lib)
+            cp._parentDep = self._parentDep
             table.insert(self._cpFlags, cpFlag)
             table.insert(self.Addons, cp)
             self:_layoutAccessories()
@@ -1287,6 +1313,7 @@ function Elements:Setup(Library)
 
         function labelObj:AddKeyPicker(kpFlag, kpOptions)
             local kp = Groupbox._addKeyPickerToContainer(labelInst, kpFlag, kpOptions, lib)
+            kp._parentDep = self._parentDep
             self._kpFlag = kpFlag
             table.insert(self.Addons, kp)
             self:_layoutAccessories()
@@ -1520,6 +1547,7 @@ function Elements:Setup(Library)
         local holdConn = UserInputService.InputBegan:Connect(function(input, processed)
             if processed or listening then return end
             if kpObj.Value == "None" then return end
+            if not DepGated(kpObj) then return end
             if MatchesKeybind(input, kpObj.Value) then
                 if kpObj.Mode == "Toggle" then
                     kpObj._isActive = not kpObj._isActive
@@ -1540,7 +1568,7 @@ function Elements:Setup(Library)
             if kpObj.Value == "None" then return end
             if MatchesKeybind(input, kpObj.Value) and kpObj.Mode == "Hold" then
                 kpObj._isActive = false
-                if cbCallback then lib:SafeCallback(cbCallback, false) end
+                if DepGated(kpObj) and cbCallback then lib:SafeCallback(cbCallback, false) end
                 if syncToggle and lib.Flags[syncToggle] then
                     lib.Flags[syncToggle]:SetValue(false)
                 end
@@ -1582,6 +1610,170 @@ function Elements:Setup(Library)
     end
 
     -- ============================================================
+    -- HOTKEY (label + Press-only keypicker; no checkbox, no mode menu)
+    -- ============================================================
+
+    function Groupbox.AddHotkey(self, flag, options)
+        options = options or {}
+        local lib = Elements.Library
+        local order = self:_nextOrder()
+
+        local default = options.Default or "None"
+        local text = options.Text or flag
+        local noUI = options.NoUI or false
+        local cbCallback = options.Callback
+
+        local container = Create("Frame", {
+            Name = "Hotkey_" .. flag,
+            Size = UDim2.new(1, 0, 0, 22),
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Parent = self._container,
+        })
+
+        local hkLabel = Create("TextLabel", {
+            Name = "Label",
+            Size = UDim2.new(1, -60, 1, 0),
+            BackgroundTransparency = 1,
+            Text = text,
+            TextColor3 = lib.Theme.FontPrimary,
+            FontFace = lib.FontRegular,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = container,
+        })
+        lib:AddToRegistry(hkLabel, { TextColor3 = "FontPrimary" })
+
+        local hkObj = {
+            Value = default,
+            Flag = flag,
+            Type = "Hotkey",
+            Mode = "Press",
+            Text = text,
+            NoUI = noUI,
+            _isActive = false,
+            _callbacks = {},
+            _pressCallbacks = {},
+        }
+
+        function hkObj:OnChanged(fn)
+            table.insert(self._callbacks, fn)
+            return self
+        end
+
+        function hkObj:OnPress(fn)
+            table.insert(self._pressCallbacks, fn)
+            return self
+        end
+
+        function hkObj:GetValue() return self.Value end
+
+        function hkObj:SetValue(data)
+            if type(data) == "table" then
+                if data[1] then self.Value = data[1] end
+            elseif type(data) == "string" then
+                self.Value = data
+            end
+            if self._keyLabel then self._keyLabel.Text = self.Value end
+            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+        end
+
+        function hkObj:SetText(newText)
+            self.Text = newText
+            hkLabel.Text = newText
+        end
+
+        local hkFrame = Create("Frame", {
+            Name = "KeyPicker_" .. flag,
+            Size = UDim2.new(0, 55, 0, 22),
+            Position = UDim2.new(1, -55, 0, 0),
+            BackgroundTransparency = 1,
+            Parent = container,
+        })
+
+        local keyBtn = Create("TextButton", {
+            Name = "KeyBtn",
+            Size = UDim2.new(1, 0, 0, 18),
+            Position = UDim2.new(0, 0, 0, 2),
+            BackgroundColor3 = lib.Theme.ElementBg,
+            BorderSizePixel = 0,
+            Text = default,
+            TextColor3 = lib.Theme.FontPrimary,
+            FontFace = lib.FontRegular,
+            TextSize = 12,
+            Parent = hkFrame,
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+        })
+        lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
+        local kbStroke = keyBtn:FindFirstChildOfClass("UIStroke")
+        if kbStroke then lib:AddToRegistry(kbStroke, { Color = "ElementBorder" }) end
+
+        hkObj._keyLabel = keyBtn
+
+        local listening = false
+        keyBtn.MouseButton1Click:Connect(function()
+            listening = true
+            keyBtn.Text = "..."
+            keyBtn.TextColor3 = lib.Theme.Accent
+        end)
+
+        local inputConn = UserInputService.InputBegan:Connect(function(input, processed)
+            if not listening then return end
+            if processed then return end
+            local keyName = GetKeyNameExtended(input)
+            if not keyName then return end
+            if ModifierKeys[keyName] then return end
+            if keyName == "Escape" or keyName == "Backspace" then
+                listening = false
+                hkObj:SetValue("None")
+                keyBtn.TextColor3 = lib.Theme.FontPrimary
+                return
+            end
+            local mods = GetModifierPrefix()
+            local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
+            listening = false
+            hkObj:SetValue(fullName)
+            keyBtn.TextColor3 = lib.Theme.FontPrimary
+        end)
+        table.insert(lib.Connections, inputConn)
+
+        local scrollConn = UserInputService.InputChanged:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+            if listening then
+                local keyName = input.Position.Z > 0 and "ScrollUp" or "ScrollDown"
+                local mods = GetModifierPrefix()
+                local fullName = #mods > 0 and (table.concat(mods, "+") .. "+" .. keyName) or keyName
+                listening = false
+                hkObj:SetValue(fullName)
+                keyBtn.TextColor3 = lib.Theme.FontPrimary
+            end
+        end)
+        table.insert(lib.Connections, scrollConn)
+
+        -- Press: fire once on key down. Mode locked to "Press".
+        local pressConn = UserInputService.InputBegan:Connect(function(input, processed)
+            if processed or listening then return end
+            if hkObj.Value == "None" then return end
+            if not DepGated(hkObj) then return end
+            if MatchesKeybind(input, hkObj.Value) then
+                for _, fn in ipairs(hkObj._pressCallbacks) do lib:SafeCallback(fn) end
+                if cbCallback then lib:SafeCallback(cbCallback) end
+            end
+        end)
+        table.insert(lib.Connections, pressConn)
+
+        if type(options.Tooltip) == "string" then
+            lib:AddToolTip(options.Tooltip, container)
+        end
+
+        getgenv().Options[flag] = hkObj
+        lib.Flags[flag] = hkObj
+        return hkObj
+    end
+
+    -- ============================================================
     -- COLORPICKER (render in popupHolder, close others)
     -- ============================================================
 
@@ -1612,8 +1804,10 @@ function Elements:Setup(Library)
                 self._preview.BackgroundColor3 = self.Value
                 self._preview.BackgroundTransparency = self.Transparency or 0
             end
-            for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
-            if callback then lib:SafeCallback(callback, self.Value) end
+            if DepGated(self) then
+                for _, fn in ipairs(self._callbacks) do lib:SafeCallback(fn, self.Value) end
+                if callback then lib:SafeCallback(callback, self.Value) end
+            end
         end
 
         function cpObj:SetValueRGB(color)
@@ -2162,7 +2356,10 @@ function Elements:Setup(Library)
         local lib = Elements.Library
         local order = self:_nextOrder()
 
-        local depBox = { _dependencies = {} }
+        local depBox = { _dependencies = {}, _visible = true }
+        -- _parentDep is set by the wrap() helper below when this depbox is
+        -- itself created inside another depbox (nested case). For top-level
+        -- creation from a groupbox, it stays nil.
 
         local container = Create("Frame", {
             Name = "DependencyBox",
@@ -2200,6 +2397,7 @@ function Elements:Setup(Library)
                     end
                 end
             end
+            self._visible = visible
             if container.Visible ~= visible then
                 container.Visible = visible
             end
@@ -2212,17 +2410,29 @@ function Elements:Setup(Library)
 
         table.insert(lib.DependencyBoxes, depBox)
 
-        depBox.AddToggle = Groupbox.AddToggle
-        depBox.AddSlider = Groupbox.AddSlider
-        depBox.AddButton = Groupbox.AddButton
-        depBox.AddDropdown = Groupbox.AddDropdown
-        depBox.AddInput = Groupbox.AddInput
-        depBox.AddLabel = Groupbox.AddLabel
+        -- Wrap each Add* so returned element inherits this depbox as ancestor.
+        local function wrap(method)
+            return function(self, ...)
+                local result = method(self, ...)
+                if type(result) == "table" then
+                    result._parentDep = self
+                end
+                return result
+            end
+        end
+
+        depBox.AddToggle = wrap(Groupbox.AddToggle)
+        depBox.AddSlider = wrap(Groupbox.AddSlider)
+        depBox.AddButton = wrap(Groupbox.AddButton)
+        depBox.AddDropdown = wrap(Groupbox.AddDropdown)
+        depBox.AddInput = wrap(Groupbox.AddInput)
+        depBox.AddLabel = wrap(Groupbox.AddLabel)
         depBox.AddBlank = Groupbox.AddBlank
         depBox.AddDivider = Groupbox.AddDivider
-        depBox.AddKeyPicker = Groupbox.AddKeyPicker
+        depBox.AddKeyPicker = wrap(Groupbox.AddKeyPicker)
+        depBox.AddHotkey = wrap(Groupbox.AddHotkey)
         depBox.AddColorPicker = Groupbox.AddColorPicker
-        depBox.AddDependencyBox = Groupbox.AddDependencyBox
+        depBox.AddDependencyBox = wrap(Groupbox.AddDependencyBox)
 
         return depBox
     end

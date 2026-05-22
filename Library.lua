@@ -641,19 +641,30 @@ end
 
 local _fpParts = {}
 function Library:UpdateKeybindFrame()
-    if not self._keybindGui or not self._keybindFrame.Visible then return end
+    if not self._keybindGui then return end
 
     -- Build fingerprint to detect changes
     local showAll = not (self._keybindFilterActive)
     local fpN = 0
+    local activeCount = 0
     for flag, opt in pairs(self.Flags) do
-        if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
+        if (opt.Type == "KeyPicker" or opt.Type == "Hotkey") and not opt.NoUI and opt.Value and opt.Value ~= "None" then
             if not showAll and not opt._isActive then continue end
             local isActive = opt._isActive or ((opt.Mode or "Toggle") == "Always")
             fpN = fpN + 1
+            activeCount = activeCount + 1
             _fpParts[fpN] = flag .. "|" .. opt.Value .. "|" .. (opt.Mode or "Toggle") .. "|" .. (isActive and "1" or "0")
         end
     end
+
+    -- Effective visibility: master toggle + (Show All OR something active in Active Only)
+    local userVisible = self._keybindFrameUserVisible == true
+    local effective = userVisible and (showAll or activeCount > 0)
+    if self._keybindFrame.Visible ~= effective then
+        self._keybindFrame.Visible = effective
+    end
+    if not effective then return end
+
     fpN = fpN + 1
     _fpParts[fpN] = self.Theme.FontSecondary:ToHex() .. "|" .. self.Theme.Accent:ToHex()
     for i = fpN + 1, #_fpParts do _fpParts[i] = nil end
@@ -668,7 +679,7 @@ function Library:UpdateKeybindFrame()
 
     local count = 0
     for flag, opt in pairs(self.Flags) do
-        if opt.Type == "KeyPicker" and not opt.NoUI and opt.Value and opt.Value ~= "None" then
+        if (opt.Type == "KeyPicker" or opt.Type == "Hotkey") and not opt.NoUI and opt.Value and opt.Value ~= "None" then
             if not showAll and not opt._isActive then continue end
             count = count + 1
             local modeStr = opt.Mode or "Toggle"

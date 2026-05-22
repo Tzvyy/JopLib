@@ -243,6 +243,23 @@ end)
 
 Options.KeyPicker:SetValue({ "MB2", "Toggle" })
 
+-- Hotkey (label + Press-only key button, no mode menu)
+LeftGroupBox:AddHotkey("MyHotkey", {
+    Text = "Print Hello",
+    Default = "J",
+    Callback = function()
+        print("Hotkey pressed!")
+    end,
+})
+
+Options.MyHotkey:OnPress(function()
+    print("OnPress fired")
+end)
+
+Options.MyHotkey:OnChanged(function()
+    print("Hotkey rebound to:", Options.MyHotkey.Value)
+end)
+
 -- ============================================================
 -- LEFT GROUPBOX #2
 -- ============================================================

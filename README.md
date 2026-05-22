@@ -155,6 +155,25 @@ Options.SpeedKey.Mode        -- current mode string
 - Scroll wheel: `ScrollUp`, `ScrollDown`
 - Press Escape/Backspace to unbind
 
+### Hotkey
+Label + key button. Fires the callback once per key press. No mode menu, no toggle/hold state — pressing the bound key runs the action.
+
+```lua
+Left:AddHotkey("MyHotkey", {
+    Text = "Print Hello",
+    Default = "J",          -- key string, same format as KeyPicker
+    NoUI = false,           -- optional, hides from keybind list
+    Callback = function() print("pressed") end,
+})
+
+Options.MyHotkey:OnPress(function() print("pressed again") end)
+Options.MyHotkey:OnChanged(function(key) print("rebound to:", key) end)
+Options.MyHotkey:SetValue("Ctrl+F")
+Options.MyHotkey:GetValue()
+```
+
+Shares the keybind list with KeyPicker (mode label shows `(Press)`); never counts as active under "Active Only" filter.
+
 ### ColorPicker
 ```lua
 -- On a label

@@ -35,7 +35,6 @@ end
 function SaveManager:IgnoreThemeSettings()
     self.IgnoreTheme = true
     self.IgnoreIndexes["ThemeSelector"] = true
-    self.IgnoreIndexes["KeybindListFilter"] = true
     self.IgnoreIndexes["CustomThemeName"] = true
     self.IgnoreIndexes["CustomThemeList"] = true
     self.IgnoreIndexes["GUILogs"] = true
@@ -115,6 +114,8 @@ function SaveManager:_serialize()
             data[flag] = { type = "Input", value = obj.Value }
         elseif t == "KeyPicker" then
             data[flag] = { type = "KeyPicker", value = obj.Value, mode = obj.Mode }
+        elseif t == "Hotkey" then
+            data[flag] = { type = "Hotkey", value = obj.Value }
         elseif t == "ColorPicker" then
             local c = obj.Value
             data[flag] = {
@@ -192,6 +193,8 @@ function SaveManager:_deserialize(data)
             end
         elseif t == "KeyPicker" then
             pcall(obj.SetValue, obj, {entry.value, entry.mode})
+        elseif t == "Hotkey" then
+            pcall(obj.SetValue, obj, entry.value)
         elseif t == "ColorPicker" then
             local c = entry.value
             if c then
@@ -235,6 +238,18 @@ function SaveManager:_deserialize(data)
                 end
             end
         end
+
+        -- Re-apply side effects for flags whose OnChanged drives library state.
+        if lib.Flags.ShowWatermark and lib.SetWatermarkVisibility then
+            lib:SetWatermarkVisibility(lib.Flags.ShowWatermark.Value)
+        end
+        if lib.Flags.ShowKeybindFrame then
+            lib._keybindFrameUserVisible = lib.Flags.ShowKeybindFrame.Value
+        end
+        if lib.Flags.KeybindListFilter then
+            lib._keybindFilterActive = (lib.Flags.KeybindListFilter.Value == "Active Only")
+        end
+        if lib.UpdateKeybindFrame then lib:UpdateKeybindFrame() end
     end
 end
 
