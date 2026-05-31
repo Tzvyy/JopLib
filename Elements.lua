@@ -483,7 +483,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             Create("UIPadding", {
                 PaddingLeft = UDim.new(0, 4),
@@ -517,7 +517,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(sliderBg, { BackgroundColor3 = "ElementBg" })
@@ -532,7 +532,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = sliderBg,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
         })
         lib:AddToRegistry(fill, { BackgroundColor3 = "SliderFill" })
 
@@ -693,7 +693,7 @@ function Elements:Setup(Library)
                 LayoutOrder = layoutOrder,
                 Parent = container,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             })
             lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -1467,7 +1467,7 @@ function Elements:Setup(Library)
             TextSize = 12,
             Parent = kpFrame,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -1730,7 +1730,7 @@ function Elements:Setup(Library)
             TextSize = 12,
             Parent = hkFrame,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -1849,7 +1849,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
 

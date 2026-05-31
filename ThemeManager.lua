@@ -9,30 +9,12 @@ local ThemeManager = {}
 ThemeManager.Library = nil
 ThemeManager.Folder = "JopLib"
 ThemeManager.BuiltInThemes = {}
-ThemeManager.ThemeOrder = { "Default", "Dark", "Light", "Dracula", "Jester", "Mint", "Nord", "Ocean", "Rose", "Tokyo Night" }
-ThemeManager._currentThemeName = "Default"
+ThemeManager.ThemeOrder = { "Dark", "Light", "Dracula", "Jester", "Mint", "Nord", "Ocean", "Rose", "Tokyo Night" }
+ThemeManager._currentThemeName = "Dark"
 
 -- ============================================================
 -- BUILT-IN THEMES
 -- ============================================================
-
-ThemeManager.BuiltInThemes["Default"] = {
-    Background       = Color3.fromRGB(35, 35, 40),
-    TitleBar         = Color3.fromRGB(40, 40, 46),
-    TabBackground    = Color3.fromRGB(38, 38, 44),
-    TabActive        = Color3.fromRGB(50, 50, 58),
-    TabInactive      = Color3.fromRGB(38, 38, 44),
-    GroupboxBg       = Color3.fromRGB(38, 38, 44),
-    ElementBg        = Color3.fromRGB(48, 48, 56),
-    ElementBorder    = Color3.fromRGB(60, 60, 68),
-    FontPrimary      = Color3.fromRGB(220, 220, 225),
-    FontSecondary    = Color3.fromRGB(150, 150, 160),
-    Accent           = Color3.fromRGB(96, 105, 255),
-    ToggleOn         = Color3.fromRGB(96, 105, 255),
-    ToggleOff        = Color3.fromRGB(55, 55, 62),
-    SliderFill       = Color3.fromRGB(96, 105, 255),
-    Border           = Color3.fromRGB(55, 55, 62),
-}
 
 ThemeManager.BuiltInThemes["Dark"] = {
     Background       = Color3.fromRGB(15, 15, 15),
@@ -346,7 +328,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
 
     right:AddDropdown("ThemeSelector", {
         Values = themeNames,
-        Default = "Default",
+        Default = "Dark",
         Text = "Theme",
     })
 
@@ -450,7 +432,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
             LayoutOrder = layoutOrder,
             Parent = parent,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -574,7 +556,7 @@ function ThemeManager:ApplyToTab(tab, menuGroupbox)
     right:AddButton({
         Text = "Set as autoload",
         Func = function()
-            local themeName = _lastThemeSelection or ThemeManager._currentThemeName or "Default"
+            local themeName = _lastThemeSelection or ThemeManager._currentThemeName or "Dark"
             if themeName == "" then
                 if lib.Notify then lib:Notify("Select a theme first", 2) end
                 return
@@ -653,7 +635,7 @@ function ThemeManager:ApplyToGroupbox(groupbox)
 
     groupbox:AddDropdown("ThemeSelector", {
         Values = themeNames,
-        Default = "Default",
+        Default = "Dark",
         Text = "Theme",
     })
 
@@ -671,7 +653,7 @@ function ThemeManager:_saveAutoloadSilent(themeName)
 end
 
 function ThemeManager:SaveCurrentTheme()
-    local themeName = self._currentThemeName or "Default"
+    local themeName = self._currentThemeName or "Dark"
     self:_saveAutoloadSilent(themeName)
     local lib = self.Library
     if lib and lib.Notify then
@@ -699,7 +681,7 @@ function ThemeManager:GetCustomTheme(name)
 end
 
 function ThemeManager:LoadDefault()
-    local theme = "Default"
+    local theme = "Dark"
     local path = self:_getDefaultThemePath()
     local ok, content = pcall(function() return readfile(path) end)
     if ok and content then
@@ -752,6 +734,13 @@ function ThemeManager:LoadAutoloadTheme()
         -- Update the autoload label
         if ThemeManager.AutoloadLabel then
             ThemeManager.AutoloadLabel:SetText("Current autoload theme: " .. content)
+        end
+
+        -- Final guarantee: re-apply every registered color so all elements
+        -- (including HUD, drag overlays, and accent bars) match the loaded theme.
+        if lib then
+            lib:UpdateColorsUsingRegistry()
+            self:_syncColorPickers()
         end
 
         self._loadingAutoTheme = false

@@ -267,10 +267,10 @@ Window:SwitchTab(Tab)
 ThemeManager:SetLibrary(Library)
 ThemeManager:ApplyToTab(Tabs.Settings, MenuGroupbox)
 ThemeManager:LoadAutoloadTheme()
-ThemeManager:SetTheme("Default")  -- programmatic switch
+ThemeManager:SetTheme("Dark")  -- programmatic switch
 ```
 
-**Built-in themes:** Default, Dark, Light, Dracula, Jester, Mint, Nord, Ocean, Rose, Tokyo Night
+**Built-in themes:** Dark (default), Light, Dracula, Jester, Mint, Nord, Ocean, Rose, Tokyo Night
 
 Custom themes: save/load/delete/overwrite via the UI. Set as autoload to auto-apply on startup.
 - **Set as autoload** uses the most recent selection from either the built-in or custom theme dropdown.
@@ -361,7 +361,7 @@ JopLib/
 JopLib/
 ├── Library.lua        — Core: window, tabs, groupboxes, notifications, watermark
 ├── Elements.lua       — UI elements: toggle, slider, dropdown, color picker, etc.
-├── ThemeManager.lua   — Theme system with 10 built-in + custom themes
+├── ThemeManager.lua   — Theme system with 9 built-in + custom themes
 ├── SaveManager.lua    — Config save/load with version migration
 ├── Example.lua        — Demo script showcasing all features
 └── README.md          — This file

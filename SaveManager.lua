@@ -384,7 +384,7 @@ function SaveManager:BuildConfigSection(tab)
             LayoutOrder = layoutOrder,
             Parent = parent,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
