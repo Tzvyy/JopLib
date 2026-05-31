@@ -1130,35 +1130,16 @@ function Library:CreateWindow(options)
     end)
     table.insert(self.Connections, dragLineConn)
 
-    local dragFadeTween
-    local dragLineTween
-    local dragPanelTween
-    local dragStrokeTween
     local function onDragStateChanged(isDragging)
         dragPanel.Position = mainFrame.Position
         dragTopLine.Position = mainFrame.Position
-        if isDragging then
-            dragPanel.Visible = true
-            dragTopLine.Visible = true
-        end
-        if dragFadeTween then dragFadeTween:Cancel() end
-        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 1 or 0 }, 0.12)
-        dragFadeTween:Play()
-        if dragLineTween then dragLineTween:Cancel() end
-        dragLineTween = Tween(dragTopLine, { BackgroundTransparency = isDragging and 0 or 1 }, 0.12)
-        dragLineTween:Play()
-        if dragPanelTween then dragPanelTween:Cancel() end
-        dragPanelTween = Tween(dragPanel, { BackgroundTransparency = isDragging and 0.2 or 1 }, 0.12)
-        dragPanelTween:Play()
-        if dragStrokeTween then dragStrokeTween:Cancel() end
-        dragStrokeTween = Tween(dragPanelStroke, { Transparency = isDragging and 0 or 1 }, 0.12)
-        dragStrokeTween:Play()
-        if not isDragging then
-            task.delay(0.12, function()
-                if dragPanel then dragPanel.Visible = false end
-                if dragTopLine then dragTopLine.Visible = false end
-            end)
-        end
+        -- Instant toggle (no tween): content hides/shows the moment dragging starts/stops.
+        mainFrame.GroupTransparency = isDragging and 1 or 0
+        dragPanel.Visible = isDragging
+        dragTopLine.Visible = isDragging
+        dragPanel.BackgroundTransparency = isDragging and 0.2 or 1
+        dragPanelStroke.Transparency = isDragging and 0 or 1
+        dragTopLine.BackgroundTransparency = isDragging and 0 or 1
     end
     local mc, ec = MakeDraggable(mainFrame, titleBar, nil, onDragStateChanged)
     table.insert(self.Connections, mc)
