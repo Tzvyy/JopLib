@@ -41,6 +41,11 @@ local function Tween(inst, props, duration)
     return TweenService:Create(inst, cached, props)
 end
 
+-- Pill toggle geometry (track 34x16, knob 12x12, 2px inset)
+local TOGGLE_WIDTH = 34
+local KNOB_OFF = UDim2.new(0, 2, 0.5, -6)
+local KNOB_ON = UDim2.new(0, TOGGLE_WIDTH - 12 - 2, 0.5, -6)
+
 local function GetKeyName(input)
     if input.UserInputType == Enum.UserInputType.Keyboard then return input.KeyCode.Name
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 then return "MB1"
@@ -161,12 +166,22 @@ function Elements:Setup(Library)
                     self._activeTween:Cancel()
                     self._activeTween = nil
                 end
+                if self._knobTween then
+                    self._knobTween:Cancel()
+                    self._knobTween = nil
+                end
                 local color = val and lib.Theme.ToggleOn or lib.Theme.ToggleOff
+                local knobPos = val and KNOB_ON or KNOB_OFF
                 if noTween then
                     self._box.BackgroundColor3 = color
+                    if self._knob then self._knob.Position = knobPos end
                 else
                     self._activeTween = Tween(self._box, {BackgroundColor3 = color}, 0.15)
                     self._activeTween:Play()
+                    if self._knob then
+                        self._knobTween = Tween(self._knob, {Position = knobPos}, 0.15)
+                        self._knobTween:Play()
+                    end
                 end
                 -- Update registry mapping for toggle box
                 local regData = lib.RegistryMap[self._box]
@@ -202,27 +217,39 @@ function Elements:Setup(Library)
 
         local box = Create("Frame", {
             Name = "Box",
-            Size = UDim2.new(0, 16, 0, 16),
+            Size = UDim2.new(0, TOGGLE_WIDTH, 0, 16),
             Position = UDim2.new(0, 0, 0.5, -8),
             BackgroundColor3 = default and lib.Theme.ToggleOn or lib.Theme.ToggleOff,
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
+            Create("Frame", {
+                Name = "Knob",
+                Size = UDim2.new(0, 12, 0, 12),
+                Position = default and KNOB_ON or KNOB_OFF,
+                BackgroundColor3 = lib.Theme.FontPrimary,
+                BorderSizePixel = 0,
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+            }),
         })
 
         local hasValue = options.ValueText and options.ValueText ~= ""
-        local labelWidth = hasValue and UDim2.new(1, -120, 1, 0) or UDim2.new(1, -24, 1, 0)
+        local labelWidth = hasValue and UDim2.new(1, -138, 1, 0) or UDim2.new(1, -42, 1, 0)
 
         lib:AddToRegistry(box, { BackgroundColor3 = default and "ToggleOn" or "ToggleOff" })
         local boxStroke = box:FindFirstChildOfClass("UIStroke")
         if boxStroke then lib:AddToRegistry(boxStroke, { Color = "ElementBorder" }) end
+        local knob = box:FindFirstChild("Knob")
+        if knob then lib:AddToRegistry(knob, { BackgroundColor3 = "FontPrimary" }) end
+        toggleObj._knob = knob
 
         local toggleLabel = Create("TextLabel", {
             Name = "Label",
             Size = labelWidth,
-            Position = UDim2.new(0, 22, 0, 0),
+            Position = UDim2.new(0, 42, 0, 0),
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = risky and lib.RiskColor or lib.Theme.FontPrimary,
@@ -271,7 +298,7 @@ function Elements:Setup(Library)
 
         local btn = Create("TextButton", {
             Name = "ClickArea",
-            Size = UDim2.new(0, 16, 0, 16),
+            Size = UDim2.new(0, TOGGLE_WIDTH, 0, 16),
             Position = UDim2.new(0, 0, 0.5, -8),
             BackgroundTransparency = 1,
             Text = "",
@@ -280,8 +307,8 @@ function Elements:Setup(Library)
 
         local labelBtn = Create("TextButton", {
             Name = "LabelClick",
-            Size = UDim2.new(1, -24, 1, 0),
-            Position = UDim2.new(0, 22, 0, 0),
+            Size = UDim2.new(1, -42, 1, 0),
+            Position = UDim2.new(0, 42, 0, 0),
             BackgroundTransparency = 1,
             Text = "",
             Parent = container,

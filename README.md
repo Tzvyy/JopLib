@@ -332,10 +332,16 @@ Each `Library` instance maintains its own `Flags` table. The global `Toggles`/`O
 
 ## Font
 
-Uses **Inter** font family. Change globally in `Library.lua`:
+Uses the **Lexend** font family. Lexend is not a built-in Roblox font, so it is provisioned at runtime:
+`Library.lua` fetches `Lexend.ttf` from the repo, writes it to the executor workspace (`JopLib/Lexend.ttf`),
+and registers it via `getcustomasset`. If the executor lacks `writefile`/`getcustomasset` or the download
+fails, it falls back to **Inter** (`rbxasset://fonts/families/Inter.json`).
+
+Override the ttf source before loading the library:
 ```lua
-local FontFamily = "rbxasset://fonts/families/Inter.json"
+getgenv().JopLibFontURL = "https://your-host/Lexend.ttf"
 ```
+The font is the single source of truth in `Library.lua` (the `ProvisionLexend` / `FontFamily` block).
 
 ## File Storage
 

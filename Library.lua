@@ -29,7 +29,39 @@ getgenv().Options = getgenv().Options or {}
 -- FONT CONFIG (single place to change)
 -- ============================================================
 
+-- Lexend is not a built-in Roblox font family, so it is provisioned at runtime:
+-- the ttf is fetched from the repo, written to the executor workspace, and
+-- registered via getcustomasset. Falls back to Inter if anything is unavailable.
+local FONT_TTF_URL = (getgenv().JopLibFontURL) or "https://raw.githubusercontent.com/Tzvyy/JopLib/main/Lexend.ttf"
+
+local function ProvisionLexend()
+    if not (writefile and isfile and getcustomasset) then return nil end
+    pcall(function()
+        if makefolder and isfolder and not isfolder("JopLib") then makefolder("JopLib") end
+    end)
+    local ttfPath = "JopLib/Lexend.ttf"
+    local jsonPath = "JopLib/Lexend.json"
+    if not isfile(ttfPath) then
+        local data = game:HttpGet(FONT_TTF_URL)
+        if not data or #data < 1000 then return nil end
+        writefile(ttfPath, data)
+    end
+    local assetId = getcustomasset(ttfPath)
+    local faces = {}
+    for _, w in ipairs({ 400, 600, 700 }) do
+        table.insert(faces, { name = tostring(w), weight = w, style = "normal", assetId = assetId })
+    end
+    local json = game:GetService("HttpService"):JSONEncode({ name = "Lexend", faces = faces })
+    writefile(jsonPath, json)
+    return getcustomasset(jsonPath)
+end
+
 local FontFamily = "rbxasset://fonts/families/Inter.json"
+local okFont, customFamily = pcall(ProvisionLexend)
+if okFont and customFamily then
+    FontFamily = customFamily
+end
+
 local Fonts = {
     Regular   = Font.new(FontFamily, Enum.FontWeight.Regular),
     SemiBold  = Font.new(FontFamily, Enum.FontWeight.SemiBold),
@@ -78,7 +110,7 @@ local function Tween(inst, props, duration, style, dir)
     return TweenService:Create(inst, GetTweenInfo(duration, style, dir), props)
 end
 
-local function MakeDraggable(frame, handle, onPositionChanged)
+local function MakeDraggable(frame, handle, onPositionChanged, onDragStateChanged)
     handle = handle or frame
     local dragging, dragStart, startPos
 
@@ -87,12 +119,14 @@ local function MakeDraggable(frame, handle, onPositionChanged)
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            if onDragStateChanged then onDragStateChanged(true) end
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                     if onPositionChanged then
                         onPositionChanged(frame.Position)
                     end
+                    if onDragStateChanged then onDragStateChanged(false) end
                 end
             end)
         end
@@ -115,6 +149,7 @@ local function MakeDraggable(frame, handle, onPositionChanged)
             if onPositionChanged then
                 onPositionChanged(frame.Position)
             end
+            if onDragStateChanged then onDragStateChanged(false) end
         end
     end)
 
@@ -433,6 +468,7 @@ function Library:Notify(text, duration)
         Name = "Notification",
         Size = UDim2.new(1, 0, 0, 0),
         BackgroundColor3 = self.Theme.Background,
+        BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Parent = holder,
@@ -441,17 +477,17 @@ function Library:Notify(text, duration)
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
-            Size = UDim2.new(0, 3, 1, -8),
-            Position = UDim2.new(0, 4, 0, 4),
+            Size = UDim2.new(0, 2, 1, -10),
+            Position = UDim2.new(0, 4, 0, 5),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+            Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
         }),
         Create("TextLabel", {
             Name = "Text",
-            Size = UDim2.new(1, -22, 1, -12),
-            Position = UDim2.new(0, 14, 0, 6),
+            Size = UDim2.new(1, -20, 1, -12),
+            Position = UDim2.new(0, 12, 0, 6),
             BackgroundTransparency = 1,
             Text = text,
             TextColor3 = self.Theme.FontPrimary,
@@ -998,7 +1034,7 @@ function Library:CreateWindow(options)
         windowPos = UDim2.new(0, 100, 0, 100)
     end
 
-    local mainFrame = Create("Frame", {
+    local mainFrame = Create("CanvasGroup", {
         Name = "MainFrame",
         Size = UDim2.new(0, windowWidth, 0, windowHeight),
         Position = windowPos,
@@ -1051,7 +1087,13 @@ function Library:CreateWindow(options)
     self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
     self:AddToRegistry(accentLine, { BackgroundColor3 = "Accent" })
 
-    local mc, ec = MakeDraggable(mainFrame, titleBar)
+    local dragFadeTween
+    local function onDragStateChanged(isDragging)
+        if dragFadeTween then dragFadeTween:Cancel() end
+        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.5 or 0 }, 0.12)
+        dragFadeTween:Play()
+    end
+    local mc, ec = MakeDraggable(mainFrame, titleBar, nil, onDragStateChanged)
     table.insert(self.Connections, mc)
     table.insert(self.Connections, ec)
 
@@ -1100,6 +1142,39 @@ function Library:CreateWindow(options)
             VerticalAlignment = Enum.VerticalAlignment.Center,
         }),
     })
+
+    local tabUnderline = Create("Frame", {
+        Name = "TabUnderline",
+        Size = UDim2.new(0, 0, 0, 2),
+        Position = UDim2.new(0, 0, 1, -2),
+        BackgroundColor3 = self.Theme.FontPrimary,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        Visible = false,
+        Parent = tabBarScroll,
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 1) }),
+    })
+    self:AddToRegistry(tabUnderline, { BackgroundColor3 = "FontPrimary" })
+
+    local function MoveTabUnderline(btn, animate)
+        if not btn then return end
+        local w = btn.AbsoluteSize.X
+        if w <= 0 then
+            task.defer(MoveTabUnderline, btn, false)
+            return
+        end
+        local relX = btn.AbsolutePosition.X - tabBarScroll.AbsolutePosition.X + tabBarScroll.CanvasPosition.X
+        local goalPos = UDim2.new(0, relX, 1, -2)
+        local goalSize = UDim2.new(0, w, 0, 2)
+        tabUnderline.Visible = true
+        if animate and tabUnderline.Size.X.Offset > 0 then
+            Tween(tabUnderline, { Position = goalPos, Size = goalSize }, 0.2):Play()
+        else
+            tabUnderline.Position = goalPos
+            tabUnderline.Size = goalSize
+        end
+    end
 
     -- Content Container
     local contentContainer = Create("Frame", {
@@ -1187,7 +1262,7 @@ function Library:CreateWindow(options)
                 Size = UDim2.new(0, 14, 0, 14),
                 BackgroundTransparency = 1,
                 Image = tabIcon,
-                ImageColor3 = Library.Theme.FontPrimary,
+                ImageColor3 = Library.Theme.FontSecondary,
                 LayoutOrder = 0,
             }))
             table.insert(tabChildren, Create("TextLabel", {
@@ -1196,7 +1271,7 @@ function Library:CreateWindow(options)
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
                 Text = tabName,
-                TextColor3 = Library.Theme.FontPrimary,
+                TextColor3 = Library.Theme.FontSecondary,
                 FontFace = Library.FontSemiBold,
                 TextSize = 14,
                 LayoutOrder = 1,
@@ -1207,7 +1282,7 @@ function Library:CreateWindow(options)
                 Size = UDim2.new(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 Text = tabName,
-                TextColor3 = Library.Theme.FontPrimary,
+                TextColor3 = Library.Theme.FontSecondary,
                 FontFace = Library.FontSemiBold,
                 TextSize = 14,
             }))
@@ -1217,7 +1292,7 @@ function Library:CreateWindow(options)
             Name = "Tab_" .. tabName,
             Size = UDim2.new(0, 0, 0, 22),
             AutomaticSize = Enum.AutomaticSize.X,
-            BackgroundColor3 = Library.Theme.TabInactive,
+            BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Text = "",
             LayoutOrder = order,
@@ -1232,11 +1307,10 @@ function Library:CreateWindow(options)
             Parent = contentContainer,
         })
 
-        Library:AddToRegistry(tabBtn, { BackgroundColor3 = "TabInactive" })
         local tabLabel = tabBtn:FindFirstChild("Label")
-        if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontPrimary" }) end
+        if tabLabel then Library:AddToRegistry(tabLabel, { TextColor3 = "FontSecondary" }) end
         local tabIconImg = tabBtn:FindFirstChild("Icon")
-        if tabIconImg then Library:AddToRegistry(tabIconImg, { ImageColor3 = "FontPrimary" }) end
+        if tabIconImg then Library:AddToRegistry(tabIconImg, { ImageColor3 = "FontSecondary" }) end
 
         local leftColumn = Create("ScrollingFrame", {
             Name = "LeftColumn",
@@ -1335,19 +1409,47 @@ function Library:CreateWindow(options)
             local gbStroke = gbFrame:FindFirstChildOfClass("UIStroke")
             if gbStroke then Library:AddToRegistry(gbStroke, { Color = "Border" }) end
 
-            local groupTitle = Create("TextLabel", {
-                Name = "GroupTitle",
+            local groupHeader = Create("Frame", {
+                Name = "GroupHeader",
                 Size = UDim2.new(1, 0, 0, 18),
                 BackgroundTransparency = 1,
-                Text = name,
-                TextColor3 = Library.Theme.FontPrimary,
-                FontFace = Library.FontBold,
-                TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
                 LayoutOrder = 0,
                 Parent = gbFrame,
+            }, {
+                Create("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                    Padding = UDim.new(0, 8),
+                }),
             })
-            Library:AddToRegistry(groupTitle, { TextColor3 = "FontPrimary" })
+
+            local groupTitle = Create("TextLabel", {
+                Name = "GroupTitle",
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Text = name,
+                TextColor3 = Library.Theme.FontSecondary,
+                FontFace = Library.FontSemiBold,
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                LayoutOrder = 0,
+                Parent = groupHeader,
+            })
+            Library:AddToRegistry(groupTitle, { TextColor3 = "FontSecondary" })
+
+            local groupHeaderLine = Create("Frame", {
+                Name = "GroupHeaderLine",
+                Size = UDim2.new(0, 0, 0, 1),
+                BackgroundColor3 = Library.Theme.Border,
+                BorderSizePixel = 0,
+                LayoutOrder = 1,
+                Parent = groupHeader,
+            }, {
+                Create("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill }),
+            })
+            Library:AddToRegistry(groupHeaderLine, { BackgroundColor3 = "Border" })
 
             local elementContainer = Create("Frame", {
                 Name = "Elements",
@@ -1574,24 +1676,32 @@ function Library:CreateWindow(options)
         return Tab
     end
 
+    local function SetTabColor(t, key)
+        if t._tabLabel then
+            t._tabLabel.TextColor3 = Library.Theme[key]
+            local reg = Library.RegistryMap[t._tabLabel]
+            if reg then reg.Properties.TextColor3 = key end
+        end
+        if t._tabIcon then
+            t._tabIcon.ImageColor3 = Library.Theme[key]
+            local reg = Library.RegistryMap[t._tabIcon]
+            if reg then reg.Properties.ImageColor3 = key end
+        end
+    end
+
     function Window:SwitchTab(tab)
         for _, t in pairs(Window.Tabs) do
             t._page.Visible = false
-            local btn = t._tabBtn
-            if btn then
-                btn.BackgroundColor3 = Library.Theme.TabInactive
-                if t._tabLabel then t._tabLabel.TextColor3 = Library.Theme.FontPrimary end
-                if t._tabIcon then t._tabIcon.ImageColor3 = Library.Theme.FontPrimary end
-            end
+            SetTabColor(t, "FontSecondary")
         end
 
         tab._page.Visible = true
-        local btn = tab._tabBtn
-        if btn then
-            btn.BackgroundColor3 = Library.Theme.TabActive
-            if tab._tabLabel then tab._tabLabel.TextColor3 = Library.Theme.FontPrimary end
-            if tab._tabIcon then tab._tabIcon.ImageColor3 = Library.Theme.FontPrimary end
-        end
+        SetTabColor(tab, "FontPrimary")
+
+        tab._page.Position = UDim2.new(0, 0, 0, 6)
+        Tween(tab._page, { Position = UDim2.new(0, 0, 0, 0) }, 0.15):Play()
+
+        MoveTabUnderline(tab._tabBtn, Window.ActiveTab ~= nil)
 
         Window.ActiveTab = tab
     end
