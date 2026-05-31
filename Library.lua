@@ -961,7 +961,7 @@ function Library:CreateWindow(options)
     local title = options.Title or "JopLib"
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
-    local windowWidth = options.Width or 660
+    local windowWidth = options.Width or 800
     local windowHeight = options.Height or 600
     local tabPadding = options.TabPadding or 8
 
@@ -1083,16 +1083,7 @@ function Library:CreateWindow(options)
     })
     self:AddToRegistry(bottomCover, { BackgroundColor3 = "Background" })
 
-    local accentLine = Create("Frame", {
-        Name = "AccentLine",
-        Size = UDim2.new(1, 0, 0, 3),
-        Position = UDim2.new(0, 0, 1, -2),
-        BackgroundColor3 = self.Theme.Accent,
-        BorderSizePixel = 0,
-        Parent = titleBar,
-    })
     self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
-    self:AddToRegistry(accentLine, { BackgroundColor3 = "Accent" })
 
     local dragFadeTween
     local function onDragStateChanged(isDragging)
@@ -1104,10 +1095,20 @@ function Library:CreateWindow(options)
     table.insert(self.Connections, mc)
     table.insert(self.Connections, ec)
 
+    local titleBarLine = Create("Frame", {
+        Name = "TitleAccent",
+        Size = UDim2.new(0, 3, 0, 16),
+        Position = UDim2.new(0, 10, 0.5, -8),
+        BackgroundColor3 = self.Theme.Accent,
+        BorderSizePixel = 0,
+        Parent = titleBar,
+    })
+    self:AddToRegistry(titleBarLine, { BackgroundColor3 = "Accent" })
+
     local titleLabel = Create("TextLabel", {
         Name = "TitleText",
-        Size = UDim2.new(1, -16, 1, 0),
-        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -24, 1, 0),
+        Position = UDim2.new(0, 18, 0, 0),
         BackgroundTransparency = 1,
         Text = title,
         TextColor3 = self.Theme.FontPrimary,
@@ -1431,16 +1432,6 @@ function Library:CreateWindow(options)
                 }),
             })
 
-            local groupHeaderBar = Create("Frame", {
-                Name = "GroupHeaderBar",
-                Size = UDim2.new(0, 2, 0, 12),
-                BackgroundColor3 = Library.Theme.Accent,
-                BorderSizePixel = 0,
-                LayoutOrder = 0,
-                Parent = groupHeader,
-            })
-            Library:AddToRegistry(groupHeaderBar, { BackgroundColor3 = "Accent" })
-
             local groupTitle = Create("TextLabel", {
                 Name = "GroupTitle",
                 Size = UDim2.new(0, 0, 1, 0),
@@ -1451,7 +1442,7 @@ function Library:CreateWindow(options)
                 FontFace = Library.FontSemiBold,
                 TextSize = 13,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                LayoutOrder = 1,
+                LayoutOrder = 0,
                 Parent = groupHeader,
             })
             Library:AddToRegistry(groupTitle, { TextColor3 = "FontSecondary" })
