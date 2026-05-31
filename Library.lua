@@ -1086,15 +1086,18 @@ function Library:CreateWindow(options)
     self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
 
     -- While dragging, the window content is hidden completely (GroupTransparency = 1) and
-    -- only a thin outline + a top accent line remain. These are siblings of (not inside)
-    -- the CanvasGroup so the drag fade does not hide them, and they track the window.
-    local dragOutline = Create("Frame", {
-        Name = "DragOutline",
+    -- only a translucent dark panel, a thin outline, and a top accent line remain. These
+    -- are siblings of (not inside) the CanvasGroup so the drag fade does not hide them,
+    -- and they track the window.
+    local dragPanel = Create("Frame", {
+        Name = "DragPanel",
         Size = UDim2.new(0, windowWidth, 0, windowHeight),
         Position = windowPos,
+        BackgroundColor3 = self.Theme.Background,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ZIndex = 9,
+        ZIndex = 8,
+        Visible = false,
         Parent = screenGui,
     }, {
         Create("UIStroke", {
@@ -1104,8 +1107,9 @@ function Library:CreateWindow(options)
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         }),
     })
-    local dragOutlineStroke = dragOutline:FindFirstChildOfClass("UIStroke")
-    self:AddToRegistry(dragOutlineStroke, { Color = "Border" })
+    self:AddToRegistry(dragPanel, { BackgroundColor3 = "Background" })
+    local dragPanelStroke = dragPanel:FindFirstChildOfClass("UIStroke")
+    self:AddToRegistry(dragPanelStroke, { Color = "Border" })
 
     local dragTopLine = Create("Frame", {
         Name = "DragTopLine",
@@ -1115,31 +1119,46 @@ function Library:CreateWindow(options)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 10,
+        Visible = false,
         Parent = screenGui,
     })
     self:AddToRegistry(dragTopLine, { BackgroundColor3 = "Accent" })
 
     local dragLineConn = mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
-        dragOutline.Position = mainFrame.Position
+        dragPanel.Position = mainFrame.Position
         dragTopLine.Position = mainFrame.Position
     end)
     table.insert(self.Connections, dragLineConn)
 
     local dragFadeTween
     local dragLineTween
-    local dragOutlineTween
+    local dragPanelTween
+    local dragStrokeTween
     local function onDragStateChanged(isDragging)
-        dragOutline.Position = mainFrame.Position
+        dragPanel.Position = mainFrame.Position
         dragTopLine.Position = mainFrame.Position
+        if isDragging then
+            dragPanel.Visible = true
+            dragTopLine.Visible = true
+        end
         if dragFadeTween then dragFadeTween:Cancel() end
-        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.7 or 0 }, 0.12)
+        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 1 or 0 }, 0.12)
         dragFadeTween:Play()
         if dragLineTween then dragLineTween:Cancel() end
         dragLineTween = Tween(dragTopLine, { BackgroundTransparency = isDragging and 0 or 1 }, 0.12)
         dragLineTween:Play()
-        if dragOutlineTween then dragOutlineTween:Cancel() end
-        dragOutlineTween = Tween(dragOutlineStroke, { Transparency = isDragging and 0 or 1 }, 0.12)
-        dragOutlineTween:Play()
+        if dragPanelTween then dragPanelTween:Cancel() end
+        dragPanelTween = Tween(dragPanel, { BackgroundTransparency = isDragging and 0.2 or 1 }, 0.12)
+        dragPanelTween:Play()
+        if dragStrokeTween then dragStrokeTween:Cancel() end
+        dragStrokeTween = Tween(dragPanelStroke, { Transparency = isDragging and 0 or 1 }, 0.12)
+        dragStrokeTween:Play()
+        if not isDragging then
+            task.delay(0.12, function()
+                if dragPanel then dragPanel.Visible = false end
+                if dragTopLine then dragTopLine.Visible = false end
+            end)
+        end
     end
     local mc, ec = MakeDraggable(mainFrame, titleBar, nil, onDragStateChanged)
     table.insert(self.Connections, mc)
