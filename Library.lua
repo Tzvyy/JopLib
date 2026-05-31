@@ -1132,7 +1132,7 @@ function Library:CreateWindow(options)
         dragOutline.Position = mainFrame.Position
         dragTopLine.Position = mainFrame.Position
         if dragFadeTween then dragFadeTween:Cancel() end
-        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.92 or 0 }, 0.12)
+        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.7 or 0 }, 0.12)
         dragFadeTween:Play()
         if dragLineTween then dragLineTween:Cancel() end
         dragLineTween = Tween(dragTopLine, { BackgroundTransparency = isDragging and 0 or 1 }, 0.12)
