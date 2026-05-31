@@ -359,7 +359,7 @@ function Library:AddToolTip(text, hoverInstance)
         Visible = false,
         Parent = self.ScreenGui or CoreGui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("UIPadding", {
             PaddingLeft = UDim.new(0, 6),
@@ -473,7 +473,7 @@ function Library:Notify(text, duration)
         ClipsDescendants = true,
         Parent = holder,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("Frame", {
             Name = "AccentBar",
@@ -481,8 +481,6 @@ function Library:Notify(text, duration)
             Position = UDim2.new(0, 4, 0, 5),
             BackgroundColor3 = self.Theme.Accent,
             BorderSizePixel = 0,
-        }, {
-            Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
         }),
         Create("TextLabel", {
             Name = "Text",
@@ -557,7 +555,7 @@ function Library:CreateWatermark()
         Visible = false,
         Parent = gui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("UIPadding", {
             PaddingLeft = UDim.new(0, 8),
@@ -628,12 +626,19 @@ function Library:CreateKeybindFrame()
         Visible = false,
         Parent = gui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
+        Create("Frame", {
+            Name = "TitleBar",
+            Size = UDim2.new(0, 2, 0, 12),
+            Position = UDim2.new(0, 6, 0, 9),
+            BackgroundColor3 = self.Theme.Accent,
+            BorderSizePixel = 0,
+        }),
         Create("TextLabel", {
             Name = "Title",
-            Size = UDim2.new(1, -8, 0, 24),
-            Position = UDim2.new(0, 6, 0, 3),
+            Size = UDim2.new(1, -16, 0, 24),
+            Position = UDim2.new(0, 14, 0, 3),
             BackgroundTransparency = 1,
             Text = "Keybinds",
             TextColor3 = self.Theme.FontSecondary,
@@ -662,6 +667,8 @@ function Library:CreateKeybindFrame()
     if kbStroke then self:AddToRegistry(kbStroke, { Color = "Border" }, true) end
     local kbTitle = frame:FindFirstChild("Title", true)
     if kbTitle then self:AddToRegistry(kbTitle, { TextColor3 = "FontSecondary" }, true) end
+    local kbTitleBar = frame:FindFirstChild("TitleBar", true)
+    if kbTitleBar then self:AddToRegistry(kbTitleBar, { BackgroundColor3 = "Accent" }, true) end
 
     local function onPosChanged(pos)
         self.KeybindFramePosition = pos
@@ -798,7 +805,7 @@ function Library:CreateFloatingPanel(options)
         Visible = startVisible,
         Parent = gui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1 }),
         Create("TextLabel", {
             Name = "Title",
@@ -954,7 +961,7 @@ function Library:CreateWindow(options)
     local title = options.Title or "JopLib"
     local center = options.Center ~= false
     local autoShow = options.AutoShow ~= false
-    local windowWidth = options.Width or 550
+    local windowWidth = options.Width or 660
     local windowHeight = options.Height or 600
     local tabPadding = options.TabPadding or 8
 
@@ -1043,7 +1050,7 @@ function Library:CreateWindow(options)
         ClipsDescendants = true,
         Parent = screenGui,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         Create("UIStroke", { Color = self.Theme.Border, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
     })
     self.MainFrame = mainFrame
@@ -1063,7 +1070,7 @@ function Library:CreateWindow(options)
         BorderSizePixel = 0,
         Parent = mainFrame,
     }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+        Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
     })
 
     local bottomCover = Create("Frame", {
@@ -1143,6 +1150,8 @@ function Library:CreateWindow(options)
         }),
     })
 
+    -- Parented to the container (NOT the scroll) so the tab bar's UIListLayout
+    -- does not lay it out as a tab.
     local tabUnderline = Create("Frame", {
         Name = "TabUnderline",
         Size = UDim2.new(0, 0, 0, 2),
@@ -1151,9 +1160,7 @@ function Library:CreateWindow(options)
         BorderSizePixel = 0,
         ZIndex = 2,
         Visible = false,
-        Parent = tabBarScroll,
-    }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 1) }),
+        Parent = tabBarContainer,
     })
     self:AddToRegistry(tabUnderline, { BackgroundColor3 = "FontPrimary" })
 
@@ -1164,7 +1171,7 @@ function Library:CreateWindow(options)
             task.defer(MoveTabUnderline, btn, false)
             return
         end
-        local relX = btn.AbsolutePosition.X - tabBarScroll.AbsolutePosition.X + tabBarScroll.CanvasPosition.X
+        local relX = btn.AbsolutePosition.X - tabBarContainer.AbsolutePosition.X
         local goalPos = UDim2.new(0, relX, 1, -2)
         local goalSize = UDim2.new(0, w, 0, 2)
         tabUnderline.Visible = true
@@ -1243,7 +1250,7 @@ function Library:CreateWindow(options)
         local order = Window._tabOrder
 
         local tabChildren = {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIPadding", {
                 PaddingLeft = UDim.new(0, 10),
                 PaddingRight = UDim.new(0, 10),
@@ -1391,7 +1398,7 @@ function Library:CreateWindow(options)
                 LayoutOrder = Tab._groupOrder,
                 Parent = parent,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = Library.Theme.Border, Thickness = 1 }),
                 Create("UIPadding", {
                     PaddingTop = UDim.new(0, 4),
@@ -1424,6 +1431,16 @@ function Library:CreateWindow(options)
                 }),
             })
 
+            local groupHeaderBar = Create("Frame", {
+                Name = "GroupHeaderBar",
+                Size = UDim2.new(0, 2, 0, 12),
+                BackgroundColor3 = Library.Theme.Accent,
+                BorderSizePixel = 0,
+                LayoutOrder = 0,
+                Parent = groupHeader,
+            })
+            Library:AddToRegistry(groupHeaderBar, { BackgroundColor3 = "Accent" })
+
             local groupTitle = Create("TextLabel", {
                 Name = "GroupTitle",
                 Size = UDim2.new(0, 0, 1, 0),
@@ -1434,22 +1451,10 @@ function Library:CreateWindow(options)
                 FontFace = Library.FontSemiBold,
                 TextSize = 13,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                LayoutOrder = 0,
+                LayoutOrder = 1,
                 Parent = groupHeader,
             })
             Library:AddToRegistry(groupTitle, { TextColor3 = "FontSecondary" })
-
-            local groupHeaderLine = Create("Frame", {
-                Name = "GroupHeaderLine",
-                Size = UDim2.new(0, 0, 0, 1),
-                BackgroundColor3 = Library.Theme.Border,
-                BorderSizePixel = 0,
-                LayoutOrder = 1,
-                Parent = groupHeader,
-            }, {
-                Create("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill }),
-            })
-            Library:AddToRegistry(groupHeaderLine, { BackgroundColor3 = "Border" })
 
             local elementContainer = Create("Frame", {
                 Name = "Elements",
@@ -1515,7 +1520,7 @@ function Library:CreateWindow(options)
                 LayoutOrder = Tab._groupOrder,
                 Parent = parent,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = Library.Theme.Border, Thickness = 1 }),
                 Create("UIPadding", {
                     PaddingTop = UDim.new(0, 4),
@@ -1580,7 +1585,7 @@ function Library:CreateWindow(options)
                     LayoutOrder = tOrder,
                     Parent = tabRow,
                 }, {
-                    Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+                    Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                     Create("UIPadding", {
                         PaddingLeft = UDim.new(0, 8),
                         PaddingRight = UDim.new(0, 8),

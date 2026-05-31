@@ -483,7 +483,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             Create("UIPadding", {
                 PaddingLeft = UDim.new(0, 4),
@@ -517,7 +517,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(sliderBg, { BackgroundColor3 = "ElementBg" })
@@ -532,7 +532,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = sliderBg,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
         })
         lib:AddToRegistry(fill, { BackgroundColor3 = "SliderFill" })
 
@@ -693,7 +693,7 @@ function Elements:Setup(Library)
                 LayoutOrder = layoutOrder,
                 Parent = container,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             })
             lib:AddToRegistry(btn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -889,7 +889,7 @@ function Elements:Setup(Library)
             Text = "",
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(dropBtn, { BackgroundColor3 = "ElementBg" })
@@ -967,7 +967,7 @@ function Elements:Setup(Library)
                 ClipsDescendants = true,
                 Parent = lib._popupHolder,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
                 Create("UIListLayout", {
                     SortOrder = Enum.SortOrder.LayoutOrder,
@@ -1237,7 +1237,7 @@ function Elements:Setup(Library)
             ClearTextOnFocus = false,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             Create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
         })
@@ -1467,7 +1467,7 @@ function Elements:Setup(Library)
             TextSize = 12,
             Parent = kpFrame,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -1500,7 +1500,7 @@ function Elements:Setup(Library)
                 ZIndex = 100,
                 Parent = lib._popupHolder,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
                 Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }),
             })
@@ -1730,7 +1730,7 @@ function Elements:Setup(Library)
             TextSize = 12,
             Parent = hkFrame,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
         lib:AddToRegistry(keyBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "FontPrimary" })
@@ -1849,7 +1849,7 @@ function Elements:Setup(Library)
             BorderSizePixel = 0,
             Parent = container,
         }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 3) }),
+            Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
         })
 
@@ -1923,7 +1923,7 @@ function Elements:Setup(Library)
                 ZIndex = 100,
                 Parent = lib._popupHolder,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
                 Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }),
             })
@@ -1937,7 +1937,7 @@ function Elements:Setup(Library)
                     Create("UIPadding", { PaddingLeft = UDim.new(0, 8) }),
                 }
                 if i == 1 or i == #menuItems then
-                    btnChildren[#btnChildren + 1] = Create("UICorner", { CornerRadius = UDim.new(0, 4) })
+                    btnChildren[#btnChildren + 1] = Create("UICorner", { CornerRadius = UDim.new(0, 0) })
                 end
 
                 local mBtn = Create("TextButton", {
@@ -1997,7 +1997,7 @@ function Elements:Setup(Library)
                 ZIndex = 100,
                 Parent = lib._popupHolder,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.Border, Thickness = 1 }),
             })
 
@@ -2038,7 +2038,7 @@ function Elements:Setup(Library)
                 ClipsDescendants = true,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
             })
 
             -- White overlay (left = white, right = transparent)
@@ -2103,7 +2103,7 @@ function Elements:Setup(Library)
                 ZIndex = 101,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIGradient", {
                     Rotation = 90,
                     Color = ColorSequence.new({
@@ -2127,7 +2127,7 @@ function Elements:Setup(Library)
                 ZIndex = 103,
                 Parent = hueBar,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
             })
 
@@ -2142,7 +2142,7 @@ function Elements:Setup(Library)
                 ClipsDescendants = true,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
             })
 
@@ -2171,7 +2171,7 @@ function Elements:Setup(Library)
                 ZIndex = 103,
                 Parent = transBarBg,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIGradient", {
                     Transparency = NumberSequence.new({
                         NumberSequenceKeypoint.new(0, 0),
@@ -2189,7 +2189,7 @@ function Elements:Setup(Library)
                 ZIndex = 105,
                 Parent = transBarBg,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1 }),
             })
 
@@ -2207,7 +2207,7 @@ function Elements:Setup(Library)
                 ZIndex = 101,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
                 Create("UIPadding", { PaddingLeft = UDim.new(0, 6) }),
             })
@@ -2230,7 +2230,7 @@ function Elements:Setup(Library)
                 ZIndex = 101,
                 Parent = pickerFrame,
             }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 4) }),
+                Create("UICorner", { CornerRadius = UDim.new(0, 0) }),
                 Create("UIStroke", { Color = lib.Theme.ElementBorder, Thickness = 1 }),
                 Create("UIPadding", { PaddingLeft = UDim.new(0, 6) }),
             })
