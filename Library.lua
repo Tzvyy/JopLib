@@ -1085,11 +1085,35 @@ function Library:CreateWindow(options)
 
     self:AddToRegistry(titleBar, { BackgroundColor3 = "Background" })
 
+    -- Accent line that appears at the top of the window while it is being dragged.
+    -- It is a sibling of (not inside) the CanvasGroup so the drag fade does not hide it,
+    -- and it tracks the window's position.
+    local dragTopLine = Create("Frame", {
+        Name = "DragTopLine",
+        Size = UDim2.new(0, windowWidth, 0, 2),
+        Position = windowPos,
+        BackgroundColor3 = self.Theme.Accent,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+        Parent = screenGui,
+    })
+    self:AddToRegistry(dragTopLine, { BackgroundColor3 = "Accent" })
+    local dragLineConn = mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+        dragTopLine.Position = mainFrame.Position
+    end)
+    table.insert(self.Connections, dragLineConn)
+
     local dragFadeTween
+    local dragLineTween
     local function onDragStateChanged(isDragging)
         if dragFadeTween then dragFadeTween:Cancel() end
-        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.5 or 0 }, 0.12)
+        dragFadeTween = Tween(mainFrame, { GroupTransparency = isDragging and 0.9 or 0 }, 0.12)
         dragFadeTween:Play()
+        if dragLineTween then dragLineTween:Cancel() end
+        dragTopLine.Position = mainFrame.Position
+        dragLineTween = Tween(dragTopLine, { BackgroundTransparency = isDragging and 0 or 1 }, 0.12)
+        dragLineTween:Play()
     end
     local mc, ec = MakeDraggable(mainFrame, titleBar, nil, onDragStateChanged)
     table.insert(self.Connections, mc)
